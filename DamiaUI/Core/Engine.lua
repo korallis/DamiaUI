@@ -46,6 +46,30 @@ DamiaUI.modules = {}
 DamiaUI.Libraries = {}
 DamiaUI.callbacks = {}
 
+-- Simple error handler
+DamiaUI.ErrorHandler = {
+    SafeCall = function(self, func, context, info, ...)
+        if type(func) == "function" then
+            local success, result = pcall(func, ...)
+            if not success then
+                -- Log error if logging is available
+                if DamiaUI.LogError then
+                    DamiaUI:LogError("Error in %s: %s", context or "unknown", tostring(result))
+                else
+                    print("|cffCC8010DamiaUI|r [ERROR] " .. tostring(result))
+                end
+                return false
+            end
+            return result
+        else
+            if DamiaUI.LogError then
+                DamiaUI:LogError("SafeCall: Invalid function provided for %s", context or "unknown")
+            end
+            return false
+        end
+    end
+}
+
 -- Core addon information
 DamiaUI.addonName = addonName
 DamiaUI.version = VERSION
@@ -184,14 +208,14 @@ local function InitializeErrorHandler()
             SafeCall = function(_, func, _, _, ...)
                 local success, result = pcall(func, ...)
                 if not success then
-                    print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(result))
+                    -- Error logging removed
                 end
                 return success, result
             end,
-            LogDebug = function(_, msg) if DEBUG_MODE then print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r " .. tostring(msg)) end end,
-            LogInfo = function(_, msg) print("|cff00ccff[" .. ADDON_NAME .. "]|r " .. tostring(msg)) end,
-            LogWarning = function(_, msg) print("|cffffff00[" .. ADDON_NAME .. " Warning]|r " .. tostring(msg)) end,
-            LogError = function(_, msg) print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(msg)) end
+            LogDebug = function(_, msg) end, -- Debug logging removed
+            LogInfo = function(_, msg) end, -- Info logging removed
+            LogWarning = function(_, msg) end, -- Warning logging removed
+            LogError = function(_, msg) end -- Error logging removed
         }
     end
 end
@@ -218,6 +242,46 @@ function DamiaUI:RegisterModule(name, module)
         self:LogDebug("Registered module: " .. name)
         return true
     end, "Engine", { module = name, operation = "register_module" })
+end
+
+-- Create and register a new module
+function DamiaUI:NewModule(name, ...)
+    local varargs = {...}
+    local numArgs = select("#", ...)
+    
+    return self.ErrorHandler:SafeCall(function()
+        if type(name) ~= "string" then
+            error("Module name must be a string")
+        end
+
+        if self.modules[name] then
+            self:LogWarning("Module '" .. name .. "' already exists")
+            return self.modules[name]
+        end
+
+        -- Create new module object
+        local module = {
+            name = name,
+            DamiaUI = self,
+            -- Add any additional module methods here
+        }
+
+        -- Allow for additional module mixins passed as varargs
+        for i = 1, numArgs do
+            local mixin = varargs[i]
+            if type(mixin) == "table" then
+                for k, v in pairs(mixin) do
+                    if not module[k] then
+                        module[k] = v
+                    end
+                end
+            end
+        end
+
+        self.modules[name] = module
+        self:LogDebug("Created new module: " .. name)
+        return module
+    end, "Engine", { module = name, operation = "new_module" })
 end
 
 -- Module retrieval
@@ -294,7 +358,7 @@ function DamiaUI:LogDebug(message)
     if self.ErrorHandler then
         self.ErrorHandler:LogDebug(tostring(message))
     elseif DEBUG_MODE then
-        print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r " .. tostring(message))
+        -- Debug logging removed
     end
 end
 
@@ -302,7 +366,7 @@ function DamiaUI:LogInfo(message)
     if self.ErrorHandler then
         self.ErrorHandler:LogInfo(tostring(message))
     else
-        print("|cff00ccff[" .. ADDON_NAME .. "]|r " .. tostring(message))
+        -- Info logging removed
     end
 end
 
@@ -310,7 +374,7 @@ function DamiaUI:LogWarning(message)
     if self.ErrorHandler then
         self.ErrorHandler:LogWarning(tostring(message))
     else
-        print("|cffffff00[" .. ADDON_NAME .. " Warning]|r " .. tostring(message))
+        -- Warning logging removed
     end
 end
 
@@ -318,7 +382,7 @@ function DamiaUI:LogError(message)
     if self.ErrorHandler then
         self.ErrorHandler:LogError(tostring(message))
     else
-        print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(message))
+        -- Error logging removed
     end
 end
 
@@ -365,6 +429,12 @@ function DamiaUI:InitializeLibraries()
     self.Libraries.Aurora = LibStub("Aurora", true)
     self.Libraries.ActionButton = LibStub("LibActionButton-1.0", true)
     self.Libraries.DataBroker = LibStub("LibDataBroker-1.1", true)
+    
+    -- Add Ace3 libraries with DamiaUI namespace
+    self.Libraries.AceConfig = LibStub("DamiaUI_AceConfig-3.0", true)
+    self.Libraries.AceConfigDialog = LibStub("DamiaUI_AceConfigDialog-3.0", true)
+    self.Libraries.AceDBOptions = LibStub("DamiaUI_AceDBOptions-3.0", true)
+    self.Libraries.AceGUI = LibStub("DamiaUI_AceGUI-3.0", true)
 
     -- Verify critical libraries loaded
     if not self.Libraries.oUF then
@@ -373,6 +443,10 @@ function DamiaUI:InitializeLibraries()
 
     if not self.Libraries.Aurora then
         self:LogWarning("Aurora library not found - Skinning will be limited")
+    end
+    
+    if not self.Libraries.AceConfigDialog then
+        self:LogWarning("AceConfigDialog library not found - Configuration UI may be limited")
     end
 
     self:LogDebug("Library initialization complete")
@@ -660,3 +734,6 @@ StaticPopupDialogs["DAMIAUI_RESET_CONFIRM"] = {
 
 -- Make DamiaUI globally accessible
 _G[addonName] = DamiaUI
+
+-- Create Engine reference for compatibility
+DamiaUI.Engine = DamiaUI

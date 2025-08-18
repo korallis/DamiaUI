@@ -27,6 +27,8 @@ end
 local _G = _G
 local pairs, ipairs = pairs, ipairs
 local type, tostring = type, tostring
+local table = table
+local tinsert, tremove = table.insert, table.remove
 local LibStub = LibStub
 
 -- Initialize module
@@ -100,10 +102,10 @@ function Configuration:OnEnable()
 end
 
 function Configuration:InitializeLibraries()
-    -- Get required libraries
-    AceConfig = LibStub("AceConfig-3.0", true)
-    AceConfigDialog = LibStub("AceConfigDialog-3.0", true)
-    AceDBOptions = LibStub("AceDBOptions-3.0", true)
+    -- Get required libraries with DamiaUI namespace
+    AceConfig = LibStub("DamiaUI_AceConfig-3.0", true)
+    AceConfigDialog = LibStub("DamiaUI_AceConfigDialog-3.0", true)
+    AceDBOptions = LibStub("DamiaUI_AceDBOptions-3.0", true)
     
     if not AceConfig or not AceConfigDialog then
         DamiaUI:LogError("AceConfig libraries not found")
@@ -334,7 +336,7 @@ function Configuration:SaveRollbackState()
     
     if profileData then
         -- Add to rollback stack
-        table.insert(rollbackStack, {
+        tinsert(rollbackStack, {
             timestamp = time(),
             profile = currentProfile,
             data = profileData
@@ -342,7 +344,7 @@ function Configuration:SaveRollbackState()
         
         -- Limit stack size
         while #rollbackStack > maxRollbackStates do
-            table.remove(rollbackStack, 1)
+            tremove(rollbackStack, 1)
         end
         
         DamiaUI:LogDebug("Saved rollback state (%d states)", #rollbackStack)
@@ -356,7 +358,7 @@ function Configuration:RollbackToPreviousState()
         return false
     end
     
-    local lastState = table.remove(rollbackStack)
+    local lastState = tremove(rollbackStack)
     if not lastState then
         return false
     end
@@ -2157,7 +2159,7 @@ function Configuration:OpenConfig(category)
         AceConfigDialog:Open("DamiaUI")
         
         -- Select specific category if provided
-        if category and AceConfigDialog:SelectGroup then
+        if category and AceConfigDialog.SelectGroup then
             AceConfigDialog:SelectGroup("DamiaUI", category)
         end
     else
