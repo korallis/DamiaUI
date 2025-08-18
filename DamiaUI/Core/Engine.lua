@@ -1,22 +1,39 @@
 --[[
     DamiaUI Core Engine
-    
+
     Main initialization and addon management system. Handles library loading,
     module registration, and provides the core API for all DamiaUI functionality.
-    
+
     Author: DamiaUI Development Team
     Version: 1.0.0
 ]]
+
+-- Suppress WoW API global warnings and field injection
+---@diagnostic disable: undefined-global, undefined-field, inject-field, redundant-parameter
 
 local addonName, addon = ...
 local _G = _G
 local pairs, ipairs, type = pairs, ipairs, type
 local CreateFrame = CreateFrame
-local LibStub = LibStub
 local GetTime, InCombatLockdown = GetTime, InCombatLockdown
 
+-- Verify LibStub exists
+assert(LibStub, "DamiaUI requires LibStub to be loaded")
+
+-- Verify AceAddon exists
+local AceAddon = LibStub("AceAddon-3.0", true)
+assert(AceAddon, "DamiaUI requires AceAddon-3.0")
+
 -- Create the main addon object
-local DamiaUI = LibStub("AceAddon-3.0"):NewAddon(addon, addonName, "AceConsole-3.0")
+---@class DamiaUI : AceAddon
+---@field modules table<string, any>
+---@field Libraries table<string, any>
+---@field callbacks table<string, table>
+---@field ErrorHandler table
+local DamiaUI = AceAddon:NewAddon(addon, addonName, "AceConsole-3.0")
+
+-- Properly register global
+---@diagnostic disable-next-line: inject-field
 _G.DamiaUI = DamiaUI
 
 -- Constants
@@ -45,7 +62,7 @@ local function DetectGameVersion()
         buildNumber = select(2, GetBuildInfo()) or "0",
         versionString = select(1, GetBuildInfo()) or "Unknown"
     }
-    
+
     -- Set primary game version flag
     if gameVersion.isMainline then
         gameVersion.gameType = "Mainline"
@@ -58,7 +75,7 @@ local function DetectGameVersion()
     else
         gameVersion.gameType = "Unknown"
     end
-    
+
     return gameVersion
 end
 
@@ -69,40 +86,42 @@ DamiaUI.gameVersion = DetectGameVersion()
 DamiaUI.API = {
     -- C_Timer availability check
     hasC_Timer = (C_Timer and C_Timer.After) ~= nil,
-    
+
     -- Equipment manager availability (Mainline/Cata+)
-    hasEquipmentManager = (GetEquipmentSetIDs ~= nil),
-    
+    ---@diagnostic disable-next-line: undefined-global
+    hasEquipmentManager = (C_EquipmentSet and C_EquipmentSet.GetEquipmentSetIDs) ~= nil,
+
     -- Talent system availability
+    ---@diagnostic disable-next-line: undefined-global
     hasTalentAPI = (GetTalentInfo ~= nil),
     hasSpecialization = (GetSpecialization ~= nil), -- Mainline only
-    
+
     -- Achievement system (WOTLKC+)
     hasAchievements = (GetAchievementInfo ~= nil),
-    
+
     -- Calendar system (WOTLKC+)
     hasCalendar = (C_Calendar ~= nil),
-    
+
     -- LFG system availability
     hasLFG = (GetLFGQueueStats ~= nil), -- WOTLKC+
     hasLFR = DamiaUI.gameVersion.isMainline, -- Mainline only
-    
+
     -- Guild system differences
     hasGuildPerks = not DamiaUI.gameVersion.isClassic, -- Not in Classic Era
-    
+
     -- Mount/Pet collection (Mainline)
     hasMountCollection = (C_MountJournal ~= nil),
     hasPetCollection = (C_PetJournal ~= nil),
-    
+
     -- Void storage (Cata+)
     hasVoidStorage = DamiaUI.gameVersion.isCata or DamiaUI.gameVersion.isMainline,
-    
+
     -- Transmogrification (Cata+ in retail timeline, but varies)
     hasTransmog = (C_Transmog ~= nil),
-    
+
     -- Item upgrade system
     hasItemUpgrade = (C_ItemUpgrade ~= nil),
-    
+
     -- Encounter journal (Cata+)
     hasEncounterJournal = (EncounterJournal ~= nil),
 }
@@ -126,7 +145,7 @@ DamiaUI.Compat = {
             end)
         end
     end,
-    
+
     -- Talent API wrapper
     GetTalentInfo = function(...)
         if DamiaUI.gameVersion.isMainline and GetTalentInfo then
@@ -138,14 +157,14 @@ DamiaUI.Compat = {
         end
         return nil
     end,
-    
+
     -- Unit power wrapper for different versions
     GetPowerType = function(unit)
         if UnitPowerType then
             return UnitPowerType(unit)
         else
             -- Fallback for very old versions
-            local powerType, powerToken = UnitPowerType(unit)
+            local powerType = UnitPowerType(unit)
             return powerType
         end
     end,
@@ -159,24 +178,20 @@ DamiaUI.startTime = GetTime()
 -- Initialize error handling first (before other modules)
 -- This ensures error handling is available during initialization
 local function InitializeErrorHandler()
-    if not DamiaUI.ErrorHandler and _G.DamiaUIErrorHandler then
-        DamiaUI.ErrorHandler = _G.DamiaUIErrorHandler
-    end
-    
     -- Fallback logging if ErrorHandler not available yet
     if not DamiaUI.ErrorHandler then
         DamiaUI.ErrorHandler = {
-            SafeCall = function(self, func, module, context, ...)
+            SafeCall = function(_, func, _, _, ...)
                 local success, result = pcall(func, ...)
                 if not success then
                     print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(result))
                 end
                 return success, result
             end,
-            LogDebug = function(self, msg) if DEBUG_MODE then print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r " .. tostring(msg)) end end,
-            LogInfo = function(self, msg) print("|cff00ccff[" .. ADDON_NAME .. "]|r " .. tostring(msg)) end,
-            LogWarning = function(self, msg) print("|cffffff00[" .. ADDON_NAME .. " Warning]|r " .. tostring(msg)) end,
-            LogError = function(self, msg) print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(msg)) end
+            LogDebug = function(_, msg) if DEBUG_MODE then print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r " .. tostring(msg)) end end,
+            LogInfo = function(_, msg) print("|cff00ccff[" .. ADDON_NAME .. "]|r " .. tostring(msg)) end,
+            LogWarning = function(_, msg) print("|cffffff00[" .. ADDON_NAME .. " Warning]|r " .. tostring(msg)) end,
+            LogError = function(_, msg) print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(msg)) end
         }
     end
 end
@@ -193,12 +208,12 @@ function DamiaUI:RegisterModule(name, module)
         if type(name) ~= "string" then
             error("Module name must be a string")
         end
-        
+
         if self.modules[name] then
             self:LogWarning("Module '" .. name .. "' is already registered")
             return false
         end
-        
+
         self.modules[name] = module
         self:LogDebug("Registered module: " .. name)
         return true
@@ -216,23 +231,23 @@ function DamiaUI:RegisterEvent(event, callback, priority)
         self:LogError("Invalid event registration parameters")
         return false
     end
-    
+
     priority = priority or 5
-    
+
     if not self.callbacks[event] then
         self.callbacks[event] = {}
     end
-    
+
     table.insert(self.callbacks[event], {
         callback = callback,
         priority = priority
     })
-    
+
     -- Sort by priority (lower number = higher priority)
     table.sort(self.callbacks[event], function(a, b)
         return a.priority < b.priority
     end)
-    
+
     return true
 end
 
@@ -241,9 +256,9 @@ function DamiaUI:FireEvent(event, ...)
     if not self.callbacks[event] then
         return
     end
-    
+
     for _, handler in ipairs(self.callbacks[event]) do
-        self.ErrorHandler:SafeCall(handler.callback, "Engine", 
+        self.ErrorHandler:SafeCall(handler.callback, "Engine",
             { event = event, operation = "fire_event" }, event, ...)
     end
 end
@@ -253,11 +268,11 @@ function DamiaUI:GetCenterPosition(offsetX, offsetY)
     local screenWidth = GetScreenWidth()
     local screenHeight = GetScreenHeight()
     local uiScale = UIParent:GetEffectiveScale()
-    
+
     -- Calculate actual center position
     local centerX = screenWidth / 2
     local centerY = screenHeight / 2
-    
+
     -- Apply offsets and scale
     return (centerX + (offsetX or 0)) / uiScale, (centerY + (offsetY or 0)) / uiScale
 end
@@ -277,7 +292,7 @@ end
 
 function DamiaUI:LogDebug(message)
     if self.ErrorHandler then
-        self.ErrorHandler:LogDebug(tostring(message), "Engine")
+        self.ErrorHandler:LogDebug(tostring(message))
     elseif DEBUG_MODE then
         print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r " .. tostring(message))
     end
@@ -285,7 +300,7 @@ end
 
 function DamiaUI:LogInfo(message)
     if self.ErrorHandler then
-        self.ErrorHandler:LogInfo(tostring(message), "Engine")
+        self.ErrorHandler:LogInfo(tostring(message))
     else
         print("|cff00ccff[" .. ADDON_NAME .. "]|r " .. tostring(message))
     end
@@ -293,7 +308,7 @@ end
 
 function DamiaUI:LogWarning(message)
     if self.ErrorHandler then
-        self.ErrorHandler:LogWarning(tostring(message), "Engine")
+        self.ErrorHandler:LogWarning(tostring(message))
     else
         print("|cffffff00[" .. ADDON_NAME .. " Warning]|r " .. tostring(message))
     end
@@ -301,7 +316,7 @@ end
 
 function DamiaUI:LogError(message)
     if self.ErrorHandler then
-        self.ErrorHandler:LogError(tostring(message), "Engine")
+        self.ErrorHandler:LogError(tostring(message))
     else
         print("|cffff0000[" .. ADDON_NAME .. " Error]|r " .. tostring(message))
     end
@@ -315,59 +330,60 @@ function DamiaUI:OnInitialize()
     self:LogInfo("Initializing DamiaUI v" .. VERSION)
     self:LogInfo("Game Version: " .. self.gameVersion.gameType .. " (" .. self.gameVersion.tocVersion .. ")")
     self:LogInfo("Build: " .. self.gameVersion.versionString .. " (" .. self.gameVersion.buildNumber .. ")")
-    
-    -- Initialize database
-    self.db = LibStub("AceDB-3.0"):New("DamiaUIDB", self.Config.Defaults, true)
-    
+
+    -- Initialize database (use DamiaUI.Defaults which is loaded from Config/Defaults.lua)
+    ---@diagnostic disable-next-line: undefined-field
+    self.db = LibStub("AceDB-3.0"):New("DamiaUIDB", DamiaUI.Defaults or {}, true)
+
     -- Register for essential events
     self:RegisterEvent("PLAYER_LOGIN")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("PLAYER_REGEN_DISABLED")
     self:RegisterEvent("PLAYER_REGEN_ENABLED")
     self:RegisterEvent("UI_SCALE_CHANGED")
-    
+
     self:LogDebug("Core initialization complete")
 end
 
 function DamiaUI:OnEnable()
     self:LogDebug("Enabling DamiaUI")
-    
+
     -- Initialize embedded libraries
     self:InitializeLibraries()
-    
+
     -- Enable all registered modules
     self:EnableModules()
-    
+
     self:LogInfo("DamiaUI enabled successfully")
 end
 
 function DamiaUI:InitializeLibraries()
     self:LogDebug("Initializing embedded libraries")
-    
+
     -- Cache library references with namespace isolation
     self.Libraries.oUF = LibStub("oUF", true)
     self.Libraries.Aurora = LibStub("Aurora", true)
     self.Libraries.ActionButton = LibStub("LibActionButton-1.0", true)
     self.Libraries.DataBroker = LibStub("LibDataBroker-1.1", true)
-    
+
     -- Verify critical libraries loaded
     if not self.Libraries.oUF then
         self:LogError("oUF library failed to load - UnitFrames will be disabled")
     end
-    
+
     if not self.Libraries.Aurora then
         self:LogWarning("Aurora library not found - Skinning will be limited")
     end
-    
+
     self:LogDebug("Library initialization complete")
 end
 
 function DamiaUI:EnableModules()
     self:LogDebug("Enabling modules")
-    
+
     for name, module in pairs(self.modules) do
-        if module and module.OnEnable then
-            local success, result = self.ErrorHandler:SafeCall(module.OnEnable, "Engine", 
+        if module and type(module.OnEnable) == "function" then
+            local success = self.ErrorHandler:SafeCall(module.OnEnable, "Engine",
                 { module = name, operation = "enable_module" }, module)
             if success then
                 self:LogDebug("Module enabled: " .. name)
@@ -385,21 +401,23 @@ end
 
 function DamiaUI:PLAYER_LOGIN()
     self:LogDebug("PLAYER_LOGIN received")
-    
+
     -- Mark as initialized
     self.isInitialized = true
-    
+
     -- Fire initialization event
     self:FireEvent("DAMIA_INITIALIZED")
-    
+
     -- Register slash commands
+    ---@diagnostic disable-next-line: undefined-field
     self:RegisterChatCommand("damia", "SlashCommand")
+    ---@diagnostic disable-next-line: undefined-field
     self:RegisterChatCommand("damiaui", "SlashCommand")
 end
 
 function DamiaUI:PLAYER_ENTERING_WORLD()
     self:LogDebug("PLAYER_ENTERING_WORLD received")
-    
+
     -- Delayed initialization for UI elements using compatibility layer
     self.Compat.After(1, function()
         self:FireEvent("DAMIA_UI_READY")
@@ -426,24 +444,24 @@ end
 ]]
 
 function DamiaUI:SlashCommand(input)
-    if not input or input:trim() == "" then
+    if not input or strtrim(input) == "" then
         -- Open configuration
-        if self.modules.Configuration then
+        if self.modules.Configuration and self.modules.Configuration.OpenConfig then
             self.modules.Configuration:OpenConfig()
         else
             self:LogInfo("Configuration module not available")
         end
         return
     end
-    
+
     local command, args = input:match("^(%w+)%s*(.*)")
     command = (command or ""):lower()
     args = args or ""
-    
+
     if command == "config" or command == "options" then
-        if self.modules.Configuration then
+        if self.modules.Configuration and self.modules.Configuration.OpenConfig then
             -- Support opening specific category
-            local category = args:trim()
+            local category = strtrim(args)
             if category ~= "" then
                 self.modules.Configuration:OpenConfig(category)
             else
@@ -456,14 +474,23 @@ function DamiaUI:SlashCommand(input)
         if self.modules.Profiles then
             local profileCommand, profileArgs = args:match("^(%w+)%s*(.*)")
             if profileCommand == "switch" and profileArgs ~= "" then
-                self.modules.Profiles:SwitchProfile(profileArgs:trim())
+                if self.modules.Profiles.SwitchProfile then
+                    self.modules.Profiles:SwitchProfile(strtrim(profileArgs))
+                end
             elseif profileCommand == "create" and profileArgs ~= "" then
-                self.modules.Profiles:CreateProfile(profileArgs:trim())
+                if self.modules.Profiles.CreateProfile then
+                    self.modules.Profiles:CreateProfile(strtrim(profileArgs))
+                end
             elseif profileCommand == "list" then
                 self:LogInfo("Available profiles:")
-                for _, name in ipairs(self.modules.Profiles:GetProfileList()) do
-                    local current = name == self.modules.Profiles:GetCurrentProfile() and " (current)" or ""
-                    self:LogInfo("  - " .. name .. current)
+                if self.modules.Profiles.GetProfileList then
+                    for _, name in ipairs(self.modules.Profiles:GetProfileList()) do
+                        local current = ""
+                        if self.modules.Profiles.GetCurrentProfile then
+                            current = name == self.modules.Profiles:GetCurrentProfile() and " (current)" or ""
+                        end
+                        self:LogInfo("  - " .. name .. current)
+                    end
                 end
             else
                 self:LogInfo("Profile commands: list, switch <name>, create <name>")
@@ -472,8 +499,8 @@ function DamiaUI:SlashCommand(input)
             self:LogInfo("Profiles module not available")
         end
     elseif command == "reset" then
-        if args:trim() == "profile" then
-            if self.modules.Profiles then
+    if strtrim(args) == "profile" then
+            if self.modules.Profiles and self.modules.Profiles.ResetProfile then
                 self.modules.Profiles:ResetProfile()
             else
                 self:LogInfo("Profiles module not available")
@@ -482,14 +509,14 @@ function DamiaUI:SlashCommand(input)
             self:ResetAllSettings()
         end
     elseif command == "backup" then
-        if self.modules.Configuration then
+        if self.modules.Configuration and self.modules.Configuration.SaveRollbackState then
             self.modules.Configuration:SaveRollbackState()
             self:LogInfo("Manual backup created")
         else
             self:LogInfo("Configuration module not available")
         end
     elseif command == "rollback" then
-        if self.modules.Configuration then
+        if self.modules.Configuration and self.modules.Configuration.RollbackToPreviousState then
             if self.modules.Configuration:RollbackToPreviousState() then
                 self:LogInfo("Rolled back to previous state")
             else
@@ -501,12 +528,12 @@ function DamiaUI:SlashCommand(input)
     elseif command == "reload" then
         ReloadUI()
     elseif command == "debug" then
-        if args:trim() == "" then
+    if strtrim(args) == "" then
             DEBUG_MODE = not DEBUG_MODE
             self:LogInfo("Debug mode " .. (DEBUG_MODE and "enabled" or "disabled"))
         else
             -- Set specific debug level
-            local level = args:trim():upper()
+            local level = strtrim(args):upper()
             if level == "ON" or level == "ENABLE" then
                 DEBUG_MODE = true
                 self:LogInfo("Debug mode enabled")
@@ -553,7 +580,7 @@ function DamiaUI:ResetAllSettings()
         self:LogError("Cannot reset settings while in combat")
         return
     end
-    
+
     StaticPopup_Show("DAMIAUI_RESET_CONFIRM")
 end
 
@@ -564,21 +591,25 @@ function DamiaUI:ShowStatus()
     self:LogInfo("  Game Version: " .. self.gameVersion.gameType .. " (" .. self.gameVersion.tocVersion .. ")")
     self:LogInfo("  Initialized: " .. (self.isInitialized and "Yes" or "No"))
     self:LogInfo("  Combat Lockdown: " .. (self:IsInCombat() and "Yes" or "No"))
-    
-    if self.modules.Configuration then
+
+    if self.modules.Configuration and self.modules.Configuration.GetStatus then
         local configStatus = self.modules.Configuration:GetStatus()
         self:LogInfo("  Configuration: " .. (configStatus.initialized and "Ready" or "Not Ready"))
         self:LogInfo("  Live Preview: " .. (configStatus.livePreview and "Enabled" or "Disabled"))
         self:LogInfo("  Rollback States: " .. configStatus.rollbackStates .. "/" .. configStatus.maxRollbackStates)
     end
-    
+
     if self.modules.Profiles then
-        local currentProfile = self.modules.Profiles:GetCurrentProfile()
-        local profileList = self.modules.Profiles:GetProfileList()
-        self:LogInfo("  Current Profile: " .. currentProfile)
-        self:LogInfo("  Available Profiles: " .. #profileList)
+        if self.modules.Profiles.GetCurrentProfile then
+            local currentProfile = self.modules.Profiles:GetCurrentProfile()
+            self:LogInfo("  Current Profile: " .. currentProfile)
+        end
+        if self.modules.Profiles.GetProfileList then
+            local profileList = self.modules.Profiles:GetProfileList()
+            self:LogInfo("  Available Profiles: " .. #profileList)
+        end
     end
-    
+
     self:LogInfo("  Loaded Modules: " .. self:CountModules())
 end
 
@@ -598,19 +629,22 @@ StaticPopupDialogs["DAMIAUI_RESET_CONFIRM"] = {
     button2 = "Cancel",
     OnAccept = function()
         -- Create backup before reset
-        if DamiaUI.modules.Configuration then
+        if DamiaUI.modules.Configuration and DamiaUI.modules.Configuration.SaveRollbackState then
             DamiaUI.modules.Configuration:SaveRollbackState()
         end
-        
-        if DamiaUI.Config then
+
+        -- Config module backup if available (will be set by Config module when loaded)
+        ---@diagnostic disable-next-line: undefined-field
+        if DamiaUI.Config and DamiaUI.Config.CreateBackup then
+            ---@diagnostic disable-next-line: undefined-field
             DamiaUI.Config:CreateBackup("before_full_reset_" .. time())
         end
-        
+
         -- Reset database
         if DamiaUI.db then
             DamiaUI.db:ResetDB()
         end
-        
+
         DamiaUI:LogInfo("Settings reset to defaults. Reloading UI...")
         ReloadUI()
     end,

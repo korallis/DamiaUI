@@ -184,17 +184,7 @@ function SecondaryBars:CreateBarFrame(barType, config, barConfig)
     bar:SetSize(barWidth, barHeight)
     bar:SetFrameStrata("LOW")
     bar:SetFrameLevel(10)
-    
-    -- Create transparent backdrop
-    bar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = nil,
-        tile = false,
-        tileSize = 0,
-        edgeSize = 0,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    bar:SetBackdropColor(0, 0, 0, 0) -- Transparent
+    -- Avoid SetBackdrop on bar to prevent BackdropTemplate issues; keep transparent or use textures if needed
     
     -- Store metadata
     bar.damiaConfig = config
@@ -290,10 +280,15 @@ BUTTON STYLING AND POSITIONING
 function SecondaryBars:SetupButtonStyling(button, config)
     if not button then return end
     
-    -- Apply Aurora styling
-    button:SetBackdrop(BUTTON_STYLE.backdrop)
-    button:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
-    button:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+    -- Apply Aurora styling via a BackdropTemplate border frame
+    if not button.damiaBorder then
+        local border = CreateFrame("Frame", nil, button, "BackdropTemplate")
+        border:SetAllPoints(button)
+        border:SetBackdrop(BUTTON_STYLE.backdrop)
+        border:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        border:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+        button.damiaBorder = border
+    end
     
     -- Configure state textures
     local normalTexture = button:GetNormalTexture()

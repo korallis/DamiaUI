@@ -170,16 +170,7 @@ function PetBar:CreatePetBar()
     self.petBar:SetFrameStrata("LOW")
     self.petBar:SetFrameLevel(10)
     
-    -- Create transparent backdrop
-    self.petBar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = nil,
-        tile = false,
-        tileSize = 0,
-        edgeSize = 0,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    self.petBar:SetBackdropColor(0, 0, 0, 0)
+    -- Avoid SetBackdrop on bar; leave transparent
     
     -- Position pet bar
     self:PositionPetBar()
@@ -303,16 +294,7 @@ function PetBar:CreateStanceBar()
     self.stanceBar:SetFrameStrata("LOW")
     self.stanceBar:SetFrameLevel(10)
     
-    -- Create transparent backdrop
-    self.stanceBar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = nil,
-        tile = false,
-        tileSize = 0,
-        edgeSize = 0,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    self.stanceBar:SetBackdropColor(0, 0, 0, 0)
+    -- Avoid SetBackdrop on bar; leave transparent
     
     -- Position stance bar
     self:PositionStanceBar()
@@ -412,10 +394,15 @@ BUTTON STYLING AND OVERLAYS
 function PetBar:SetupButtonStyling(button, config)
     if not button then return end
     
-    -- Apply Aurora styling
-    button:SetBackdrop(BUTTON_STYLE.backdrop)
-    button:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
-    button:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+    -- Apply Aurora styling via BackdropTemplate border frame
+    if not button.damiaBorder then
+        local border = CreateFrame("Frame", nil, button, "BackdropTemplate")
+        border:SetAllPoints(button)
+        border:SetBackdrop(BUTTON_STYLE.backdrop)
+        border:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        border:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+        button.damiaBorder = border
+    end
     
     -- Configure state textures
     local normalTexture = button:GetNormalTexture()

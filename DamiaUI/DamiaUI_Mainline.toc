@@ -60,6 +60,8 @@ Config\Constants.lua
 Config\Defaults.lua
 
 # Core System (Order Critical)
+Core\Compatibility.lua
+Core\CompatibilityUtils.lua
 Core\Engine.lua
 Core\Utils.lua
 Core\Events.lua

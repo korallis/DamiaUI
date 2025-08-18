@@ -66,6 +66,8 @@ Config\Constants.lua
 Config\Defaults.lua
 
 # Core System (Order Critical)
+Core\Compatibility.lua
+Core\ErrorHandler.lua
 Core\Engine.lua
 Core\Utils.lua
 Core\Events.lua
@@ -73,6 +75,9 @@ Core\Performance.lua
 Core\Memory.lua
 Core\Throttle.lua
 Core\Config.lua
+Core\SafeMode.lua
+Core\Resolution.lua
+Core\Combat.lua
 
 # Localization
 Locales\enUS.lua
@@ -93,11 +98,21 @@ Modules\ActionBars\SecondaryBars.lua
 Modules\ActionBars\PetBar.lua
 Modules\ActionBars\ActionBars.lua
 Modules\Interface\Interface.lua
+Modules\Interface\Chat.lua
+Modules\Interface\Minimap.lua
+Modules\Interface\Buffs.lua
+Modules\Interface\InfoPanels.lua
 Modules\Skinning\Skinning.lua
+Modules\Skinning\Blizzard.lua
+Modules\Skinning\AddOns.lua
+Modules\Skinning\Custom.lua
 Modules\Integration\Templates\WeakAurasTemplates.lua
 Modules\Integration\Templates\DetailsTemplates.lua
 Modules\Integration\Templates\DBMTemplates.lua
 Modules\Integration\AutoConfig.lua
+Modules\Integration\AddonProfiles.lua
+Modules\Integration\WeakAurasIntegration.lua
+Modules\Integration\DetailsIntegration.lua
 Modules\Integration\Integration.lua
 Modules\Configuration\Migration.lua
 Modules\Configuration\Profiles.lua

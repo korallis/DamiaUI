@@ -98,8 +98,17 @@ local function StyleChatFrame(chatFrame)
     
     local config = CHAT_CONFIG
     
-    -- Set font
-    local fontFile, fontSize, fontFlags = chatFrame:GetFont()
+    -- Set font with compatibility check
+    local fontFile, fontSize, fontFlags
+    if chatFrame.GetFont then
+        fontFile, fontSize, fontFlags = chatFrame:GetFont()
+    else
+        -- Fallback for frames without GetFont method
+        fontFile = "Fonts\\FRIZQT__.TTF"
+        fontSize = 12
+        fontFlags = "OUTLINE"
+    end
+    
     fontSize = config.font.size
     fontFlags = config.font.flags
     
@@ -107,7 +116,9 @@ local function StyleChatFrame(chatFrame)
         fontFile = config.font.file
     end
     
-    chatFrame:SetFont(fontFile, fontSize, fontFlags)
+    if chatFrame.SetFont then
+        chatFrame:SetFont(fontFile, fontSize, fontFlags)
+    end
     
     -- Configure behavior
     chatFrame:SetMaxLines(config.behavior.maxLines)
@@ -253,7 +264,8 @@ local function SetupStickyChannels()
     end
     
     -- Override default sticky behavior
-    for i = 1, NUM_CHAT_WINDOWS do
+    local numChatWindows = NUM_CHAT_WINDOWS or 10  -- Fallback to 10
+    for i = 1, numChatWindows do
         local chatFrame = _G["ChatFrame" .. i]
         local editBox = _G["ChatFrame" .. i .. "EditBox"]
         

@@ -9,7 +9,14 @@
 ]]
 
 local addonName, addon = ...
-local DamiaUI = _G.DamiaUI or {}
+
+-- Ensure DamiaUI exists in global namespace
+local DamiaUI = _G.DamiaUI
+if not DamiaUI then
+    -- Create temporary holder if Engine hasn't loaded yet
+    DamiaUI = {}
+    _G.DamiaUI = DamiaUI
+end
 
 -- Initialize constants table
 DamiaUI.Constants = {}

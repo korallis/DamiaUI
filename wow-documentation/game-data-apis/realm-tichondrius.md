@@ -1,0 +1,39 @@
+# Realm - Tichondrius
+
+## Endpoint
+```
+GET /data/wow/realm/tichondrius?namespace=dynamic-us&locale=en_US
+```
+
+## Response
+```json
+{
+    "_links": {
+        "self": {
+            "href": "https://us.api.blizzard.com/data/wow/realm/tichondrius?namespace=dynamic-us"
+        }
+    },
+    "id": 11,
+    "region": {
+        "key": {
+            "href": "https://us.api.blizzard.com/data/wow/region/1?namespace=dynamic-us"
+        },
+        "name": "North America",
+        "id": 1
+    },
+    "connected_realm": {
+        "href": "https://us.api.blizzard.com/data/wow/connected-realm/11?namespace=dynamic-us"
+    },
+    "name": "Tichondrius",
+    "category": "United States",
+    "locale": "enUS",
+    "timezone": "America/Los_Angeles",
+    "type": {
+        "type": "NORMAL",
+        "name": "Normal"
+    },
+    "is_tournament": false,
+    "slug": "tichondrius"
+}
+```
+

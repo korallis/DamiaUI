@@ -502,30 +502,37 @@ function DBMTemplates:ApplyTimerBarStyling(timerId)
     -- Apply DamiaUI styling to specific timer bar
     local bar = DBM.Bars:GetBar(timerId)
     if bar and bar.frame then
-        -- Apply custom styling
-        if bar.frame.SetBackdrop then
-            bar.frame:SetBackdrop({
-                bgFile = "Interface\\Buttons\\WHITE8X8",
-                edgeFile = "Interface\\Buttons\\WHITE8X8",
-                tile = false,
-                edgeSize = 1,
-                insets = { left = 0, right = 0, top = 0, bottom = 0 }
-            })
-            
-            bar.frame:SetBackdropColor(
-                DBM_COLORS.background.r,
-                DBM_COLORS.background.g,
-                DBM_COLORS.background.b,
-                DBM_COLORS.background.a
-            )
-            
-            bar.frame:SetBackdropBorderColor(
-                DBM_COLORS.border.r,
-                DBM_COLORS.border.g,
-                DBM_COLORS.border.b,
-                DBM_COLORS.border.a
-            )
+        -- Background texture (safer than SetBackdrop on Retail)
+        if not bar.frame.damiaBackground then
+            local bg = bar.frame:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints(bar.frame)
+            bar.frame.damiaBackground = bg
         end
+        bar.frame.damiaBackground:SetTexture("Interface\\Buttons\\WHITE8X8")
+        bar.frame.damiaBackground:SetVertexColor(
+            DBM_COLORS.background.r,
+            DBM_COLORS.background.g,
+            DBM_COLORS.background.b,
+            DBM_COLORS.background.a
+        )
+
+        -- Border frame with BackdropTemplate
+        if not bar.frame.damiaBorder then
+            local border = CreateFrame("Frame", nil, bar.frame, "BackdropTemplate")
+            border:SetAllPoints(bar.frame)
+            border:SetFrameLevel(bar.frame:GetFrameLevel() + 1)
+            bar.frame.damiaBorder = border
+        end
+        bar.frame.damiaBorder:SetBackdrop({
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = 1,
+        })
+        bar.frame.damiaBorder:SetBackdropBorderColor(
+            DBM_COLORS.border.r,
+            DBM_COLORS.border.g,
+            DBM_COLORS.border.b,
+            DBM_COLORS.border.a
+        )
     end
     
     return true

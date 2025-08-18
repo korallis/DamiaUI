@@ -584,7 +584,7 @@ function Skinning:CreateCustomBorder(frame, borderSize, borderColor)
     borderColor = borderColor or DamiaUI.Config.Get("skinning.customColors.border")
     
     -- Create border frame
-    local border = CreateFrame("Frame", nil, frame)
+    local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     border:SetAllPoints(frame)
     border:SetBackdrop({
         edgeFile = "Interface\\Buttons\\WHITE8X8",

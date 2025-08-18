@@ -19,9 +19,19 @@ local GetScreenWidth, GetScreenHeight = GetScreenWidth, GetScreenHeight
 -- Module initialization
 local UnitFrames = DamiaUI:NewModule("UnitFrames")
 
--- Module dependencies
-local oUF = DamiaUI.Libraries.oUF
-local Aurora = DamiaUI.Libraries.Aurora
+-- Module dependencies with validation
+local oUF = DamiaUI.Libraries and DamiaUI.Libraries.oUF
+local Aurora = DamiaUI.Libraries and DamiaUI.Libraries.Aurora
+
+-- Validate oUF is available
+if not oUF then
+    if DamiaUI.Engine then
+        DamiaUI.Engine:LogError("oUF library not found - UnitFrames module cannot function")
+    else
+        print("|cffff0000[DamiaUI Error]|r oUF library not found - UnitFrames module cannot function")
+    end
+    return
+end
 
 -- Constants for the centered layout system
 local FRAME_POSITIONS = {
@@ -158,14 +168,29 @@ local function CreateDamiaLayout(self, unit, ...)
         self.Castbar = castbar
     end
     
-    -- Apply Aurora styling if available
-    if Aurora and Aurora.CreateBorder then
-        Aurora.CreateBorder(self, 8)
-        if Aurora.Skin and Aurora.Skin.StatusBarWidget then
-            Aurora.Skin.StatusBarWidget(health)
-            Aurora.Skin.StatusBarWidget(power)
-            if self.Castbar then
-                Aurora.Skin.StatusBarWidget(self.Castbar)
+    -- Apply Aurora styling if available with proper checks
+    if Aurora then
+        if Aurora.CreateBorder and type(Aurora.CreateBorder) == "function" then
+            local success, err = pcall(Aurora.CreateBorder, self, 8)
+            if not success and DamiaUI.Engine then
+                DamiaUI.Engine:LogDebug("Aurora CreateBorder failed: " .. tostring(err))
+            end
+        end
+        
+        if Aurora.Skin then
+            if Aurora.Skin.StatusBarWidget and type(Aurora.Skin.StatusBarWidget) == "function" then
+                local function applySkin(widget)
+                    local success, err = pcall(Aurora.Skin.StatusBarWidget, widget)
+                    if not success and DamiaUI.Engine then
+                        DamiaUI.Engine:LogDebug("Aurora StatusBarWidget skinning failed: " .. tostring(err))
+                    end
+                end
+                
+                applySkin(health)
+                applySkin(power)
+                if self.Castbar then
+                    applySkin(self.Castbar)
+                end
             end
         end
     end

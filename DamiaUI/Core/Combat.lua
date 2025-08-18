@@ -296,9 +296,24 @@ function Combat:RemoveHighlighting(element)
             highlight.fadeOut:Stop()
         end
         
-        highlight.fadeOut = C_Timer.NewTimer(COMBAT_CONFIG.fadeOutTime, function()
-            highlight:Hide()
-        end)
+        -- Use compatibility layer for timer
+        if C_Timer and C_Timer.NewTimer then
+            highlight.fadeOut = C_Timer.NewTimer(COMBAT_CONFIG.fadeOutTime, function()
+                highlight:Hide()
+            end)
+        else
+            -- Fallback for older versions
+            local frame = CreateFrame("Frame")
+            local elapsed = 0
+            frame:SetScript("OnUpdate", function(self, deltaTime)
+                elapsed = elapsed + deltaTime
+                if elapsed >= COMBAT_CONFIG.fadeOutTime then
+                    self:SetScript("OnUpdate", nil)
+                    highlight:Hide()
+                end
+            end)
+            highlight.fadeOut = frame
+        end
     end
 end
 
@@ -494,12 +509,27 @@ end
 function Combat:StartMonitoring()
     if self.monitoringActive then return end
     
-    -- Create update ticker
-    self.updateTicker = C_Timer.NewTicker(COMBAT_CONFIG.updateInterval, function()
-        UpdateCombatState()
-        -- Monitor performance during combat
-        self:MonitorCombatPerformance()
-    end)
+    -- Create update ticker using compatibility layer
+    if C_Timer and C_Timer.NewTicker then
+        self.updateTicker = C_Timer.NewTicker(COMBAT_CONFIG.updateInterval, function()
+            UpdateCombatState()
+            -- Monitor performance during combat
+            self:MonitorCombatPerformance()
+        end)
+    else
+        -- Fallback for older versions using OnUpdate
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        frame:SetScript("OnUpdate", function(self, deltaTime)
+            elapsed = elapsed + deltaTime
+            if elapsed >= COMBAT_CONFIG.updateInterval then
+                elapsed = 0
+                UpdateCombatState()
+                Combat:MonitorCombatPerformance()
+            end
+        end)
+        self.updateTicker = frame
+    end
     
     self.monitoringActive = true
     DamiaUI.Engine:LogDebug("Combat monitoring started")
@@ -512,7 +542,14 @@ function Combat:StopMonitoring()
     if not self.monitoringActive then return end
     
     if self.updateTicker then
-        self.updateTicker:Cancel()
+        if C_Timer and self.updateTicker.Cancel then
+            self.updateTicker:Cancel()
+        else
+            -- Fallback cleanup for frame-based timer
+            if self.updateTicker.SetScript then
+                self.updateTicker:SetScript("OnUpdate", nil)
+            end
+        end
         self.updateTicker = nil
     end
     
@@ -586,9 +623,22 @@ function Combat:DisableCombatOptimizations()
     
     -- Schedule post-combat cleanup
     if DamiaUI.Memory then
-        C_Timer.After(2.0, function()
-            DamiaUI.Memory:PerformStandardCleanup()
-        end)
+        if C_Timer and C_Timer.After then
+            C_Timer.After(2.0, function()
+                DamiaUI.Memory:PerformStandardCleanup()
+            end)
+        else
+            -- Fallback for older versions
+            local frame = CreateFrame("Frame")
+            local elapsed = 0
+            frame:SetScript("OnUpdate", function(self, deltaTime)
+                elapsed = elapsed + deltaTime
+                if elapsed >= 2.0 then
+                    self:SetScript("OnUpdate", nil)
+                    DamiaUI.Memory:PerformStandardCleanup()
+                end
+            end)
+        end
     end
     
     DamiaUI.Engine:LogDebug("Combat performance optimizations disabled")
@@ -666,4 +716,12 @@ function Combat:MonitorCombatPerformance()
 end
 
 -- Register module with engine
-DamiaUI.RegisterModule("Combat", Combat, moduleDependencies)
+if DamiaUI and DamiaUI.RegisterModule then
+    DamiaUI:RegisterModule("Combat", Combat)
+elseif DamiaUI then
+    -- Fallback registration
+    DamiaUI.Combat = Combat
+    if DamiaUI.Engine then
+        DamiaUI.Engine:LogDebug("Combat module registered directly")
+    end
+end

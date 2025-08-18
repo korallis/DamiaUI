@@ -724,7 +724,7 @@ function DetailsIntegration:CreateDamiaDetailsBorder(frame)
         return
     end
     
-    local border = CreateFrame("Frame", nil, frame)
+    local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     border:SetAllPoints(frame)
     border:SetFrameLevel(frame:GetFrameLevel() + 1)
     

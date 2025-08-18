@@ -133,16 +133,8 @@ function MainBar:CreateMainBar()
     self.bar:SetFrameStrata("LOW")
     self.bar:SetFrameLevel(10)
     
-    -- Create backdrop for bar
-    self.bar:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8X8",
-        edgeFile = nil,
-        tile = false,
-        tileSize = 0,
-        edgeSize = 0,
-        insets = { left = 0, right = 0, top = 0, bottom = 0 }
-    })
-    self.bar:SetBackdropColor(0, 0, 0, 0) -- Transparent background
+    -- Transparent background; avoid SetBackdrop to prevent BackdropTemplate issues on Retail
+    -- If a background is needed later, use a texture layer
     
     -- Store configuration reference
     self.bar.damiaConfig = self.config
@@ -228,10 +220,15 @@ BUTTON STYLING AND VISUALS
 function MainBar:SetupButtonStyling(button)
     if not button then return end
     
-    -- Create backdrop with Aurora styling
-    button:SetBackdrop(BUTTON_STYLE.backdrop)
-    button:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
-    button:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+    -- Optional border frame for Aurora styling (uses BackdropTemplate)
+    if not button.damiaBorder then
+        local border = CreateFrame("Frame", nil, button, "BackdropTemplate")
+        border:SetAllPoints(button)
+        border:SetBackdrop(BUTTON_STYLE.backdrop)
+        border:SetBackdropColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        border:SetBackdropBorderColor(BUTTON_STYLE.borderColor.r, BUTTON_STYLE.borderColor.g, BUTTON_STYLE.borderColor.b, BUTTON_STYLE.borderColor.a)
+        button.damiaBorder = border
+    end
     
     -- Configure textures for different states
     local normalTexture = button:GetNormalTexture()
@@ -300,7 +297,8 @@ function MainBar:SetupButtonOverlays(button)
     -- Cooldown frame
     if self.config.showCooldowns then
         button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-        button.cooldown:SetAllPoints(button)\n        button.cooldown:SetFrameLevel(button:GetFrameLevel() + 1)
+        button.cooldown:SetAllPoints(button)
+        button.cooldown:SetFrameLevel(button:GetFrameLevel() + 1)
         button.cooldown:SetSwipeColor(0, 0, 0, 0.8)
         button.cooldown:SetDrawBling(true)
         button.cooldown:SetDrawEdge(true)
@@ -330,8 +328,7 @@ end
 function MainBar:ApplyAuroraStyling()
     if not self.bar or not self.buttons then return end
     
-    -- Apply Aurora styling to main bar frame
-    self.bar:SetBackdropColor(0, 0, 0, 0) -- Keep transparent
+    -- Ensure bar remains visually transparent; no SetBackdrop is used
     
     -- Apply styling to all buttons
     for i, button in pairs(self.buttons) do

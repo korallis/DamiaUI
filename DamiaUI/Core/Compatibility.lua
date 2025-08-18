@@ -21,7 +21,7 @@ Version: 1.0.0
 ===============================================================================
 --]]
 
-local addonName, DamiaUI = ...
+local _, DamiaUI = ...
 
 -- Early return if compatibility already loaded
 if DamiaUI.Compatibility then
@@ -33,11 +33,13 @@ local _G = _G
 local type = type
 local pcall = pcall
 local select = select
-local tinsert = table.insert
 
 -- Create Compatibility module
 local Compatibility = {}
 DamiaUI.Compatibility = Compatibility
+
+-- Suppress WoW API global warnings for this file
+---@diagnostic disable: undefined-global, undefined-field
 
 -- Version detection and constants
 local WOW_VERSION = select(1, GetBuildInfo())
@@ -50,6 +52,12 @@ local IS_RETAIL = WOW_VERSION_MAJOR >= 10
 local IS_CATA_CLASSIC = WOW_VERSION_MAJOR >= 4 and WOW_VERSION_MAJOR < 10
 local IS_WRATH_CLASSIC = WOW_VERSION_MAJOR >= 3 and WOW_VERSION_MAJOR < 4
 local IS_CLASSIC_ERA = WOW_VERSION_MAJOR >= 1 and WOW_VERSION_MAJOR < 3
+
+-- WoW Project ID compatibility (may not exist in all versions)
+---@diagnostic disable-next-line: undefined-global
+local WOW_PROJECT_ID = WOW_PROJECT_ID or (IS_RETAIL and 1 or IS_CLASSIC_ERA and 2 or IS_WRATH_CLASSIC and 3 or IS_CATA_CLASSIC and 4 or 0)
+---@diagnostic disable-next-line: undefined-global
+local WOW_PROJECT_MAINLINE = WOW_PROJECT_MAINLINE or 1
 
 -- API availability cache for performance
 local apiCache = {}
@@ -104,6 +112,16 @@ local function CompatibleUnitAura(unit, index, filter)
     if APIExists("C_UnitAuras.GetAuraDataByIndex") then
         local auraData = C_UnitAuras.GetAuraDataByIndex(unit, index, filter)
         if auraData then
+            -- Check API version for field names
+            local isDispellable = false
+            if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and select(4, GetBuildInfo()) >= 110000 then
+                -- Use new field names for 11.0+
+                isDispellable = auraData.isDispellable or false
+            else
+                -- Use legacy field names
+                isDispellable = auraData.canDispel or auraData.isDispellable or false
+            end
+            
             return auraData.name,
                    auraData.icon,
                    auraData.applications,
@@ -119,13 +137,14 @@ local function CompatibleUnitAura(unit, index, filter)
                    auraData.isFromPlayerOrPlayerPet,
                    auraData.nameplateShowAll,
                    auraData.timeMod,
-                   auraData.canDispel or auraData.isDispellable
+                   isDispellable
         end
         return nil
     end
     
-    -- Legacy API fallback
-    if _G.UnitAura then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.UnitAura and type(_G.UnitAura) == "function" then
         return UnitAura(unit, index, filter)
     end
     
@@ -166,8 +185,9 @@ local function CompatibleGetSpellInfo(spellID)
         return nil
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellInfo then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellInfo and type(_G.GetSpellInfo) == "function" then
         return GetSpellInfo(spellID)
     end
     
@@ -188,8 +208,9 @@ local function CompatibleGetSpellCooldown(spellID)
         return nil
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellCooldown then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellCooldown and type(_G.GetSpellCooldown) == "function" then
         return GetSpellCooldown(spellID)
     end
     
@@ -203,8 +224,9 @@ local function CompatibleGetSpellTexture(spellID)
         return C_Spell.GetSpellTexture(spellID)
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellTexture then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellTexture and type(_G.GetSpellTexture) == "function" then
         return GetSpellTexture(spellID)
     end
     
@@ -226,8 +248,9 @@ local function CompatibleGetSpellCharges(spellID)
         return nil
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellCharges then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellCharges and type(_G.GetSpellCharges) == "function" then
         return GetSpellCharges(spellID)
     end
     
@@ -240,13 +263,21 @@ local function CompatibleIsUsableSpell(spellID)
     if APIExists("C_Spell.IsSpellUsable") then
         local usableInfo = C_Spell.IsSpellUsable(spellID)
         if usableInfo then
-            return usableInfo.isUsable, usableInfo.noMana
+            -- Check API version for field names
+            if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and select(4, GetBuildInfo()) >= 110000 then
+                -- Use new field names for 11.0+
+                return usableInfo.usable or false, usableInfo.insufficientPower or false
+            else
+                -- Use legacy field names
+                return usableInfo.isUsable or false, usableInfo.noMana or false
+            end
         end
         return false, false
     end
     
-    -- Legacy API fallback
-    if _G.IsUsableSpell then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.IsUsableSpell and type(_G.IsUsableSpell) == "function" then
         return IsUsableSpell(spellID)
     end
     
@@ -260,8 +291,9 @@ local function CompatibleGetSpellDescription(spellID)
         return C_Spell.GetSpellDescription(spellID)
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellDescription then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellDescription and type(_G.GetSpellDescription) == "function" then
         return GetSpellDescription(spellID)
     end
     
@@ -275,8 +307,9 @@ local function CompatibleGetSpellCount(spellID)
         return C_Spell.GetSpellCastCount(spellID)
     end
     
-    -- Legacy API fallback
-    if _G.GetSpellCount then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellCount and type(_G.GetSpellCount) == "function" then
         return GetSpellCount(spellID)
     end
     
@@ -291,13 +324,14 @@ GUILD SYSTEM COMPATIBILITY
 
 -- IsInGuild replacement with C_Guild.IsGuildMember compatibility
 local function CompatibleIsInGuild()
-    -- Modern API (9.0+)
-    if APIExists("C_Guild.IsGuildMember") then
+    -- Modern API (9.0+) with namespace check
+    if C_Guild and C_Guild.IsGuildMember then
         return C_Guild.IsGuildMember()
     end
     
-    -- Legacy API fallback
-    if _G.IsInGuild then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.IsInGuild and type(_G.IsInGuild) == "function" then
         return IsInGuild()
     end
     
@@ -317,8 +351,9 @@ local function CompatibleGetRealmName()
         return GetNormalizedRealmName()
     end
     
-    -- Legacy API fallback
-    if _G.GetRealmName then
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetRealmName and type(_G.GetRealmName) == "function" then
         return GetRealmName()
     end
     
@@ -338,8 +373,9 @@ local function CompatiblePlaySound(soundID, channel)
         return PlaySoundFile(soundID, channel or "Master")
     end
     
-    -- Legacy PlaySound for sound IDs
-    if _G.PlaySound then
+    -- Legacy PlaySound for sound IDs with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.PlaySound and type(_G.PlaySound) == "function" then
         return PlaySound(soundID, channel)
     end
     
@@ -416,7 +452,8 @@ local function CompatibleGetNumSpellTabs()
         return C_SpellBook.GetNumSpellBookSkillLines()
     end
     
-    if _G.GetNumSpellTabs then
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetNumSpellTabs and type(_G.GetNumSpellTabs) == "function" then
         return GetNumSpellTabs()
     end
     
@@ -440,7 +477,8 @@ local function CompatibleGetSpellTabInfo(index)
         return nil
     end
     
-    if _G.GetSpellTabInfo then
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellTabInfo and type(_G.GetSpellTabInfo) == "function" then
         return GetSpellTabInfo(index)
     end
     
@@ -453,7 +491,8 @@ local function CompatibleGetSpellBookItemName(index, bookType)
         return C_SpellBook.GetSpellBookItemName(index, bookType)
     end
     
-    if _G.GetSpellBookItemName then
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellBookItemName and type(_G.GetSpellBookItemName) == "function" then
         return GetSpellBookItemName(index, bookType)
     end
     

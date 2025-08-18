@@ -22,6 +22,7 @@ DamiaUI.Integration.DetailsTemplates = DetailsTemplates
 
 -- Local references for performance
 local _G = _G
+local _detalhes = _G._detalhes
 local pairs, ipairs = pairs, ipairs
 local type = type
 local CreateFrame = CreateFrame
@@ -433,25 +434,34 @@ function DetailsTemplates:ApplyWindowAppearance(instance, windowType)
     
     local appearance = DETAILS_CONFIGURATIONS.appearance
     
-    -- Background
-    if instance.baseFrame.SetBackdrop then
-        instance.baseFrame:SetBackdrop({
-            bgFile = "Interface\\Buttons\\WHITE8X8",
-            edgeFile = "Interface\\Buttons\\WHITE8X8",
-            tile = false,
-            tileSize = 16,
-            edgeSize = appearance.border_size,
-            insets = { left = 0, right = 0, top = 0, bottom = 0 }
-        })
-        
-        instance.baseFrame:SetBackdropColor(
+    -- Background + border using safe child frames
+    if instance.baseFrame then
+        -- Background texture
+        if not instance.baseFrame.damiaBackground then
+            local bg = instance.baseFrame:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints(instance.baseFrame)
+            instance.baseFrame.damiaBackground = bg
+        end
+        instance.baseFrame.damiaBackground:SetTexture("Interface\\Buttons\\WHITE8X8")
+        instance.baseFrame.damiaBackground:SetVertexColor(
             appearance.color.background[1],
-            appearance.color.background[2], 
+            appearance.color.background[2],
             appearance.color.background[3],
             appearance.color.background[4]
         )
-        
-        instance.baseFrame:SetBackdropBorderColor(
+
+        -- Border frame with BackdropTemplate
+        if not instance.baseFrame.damiaBorder then
+            local border = CreateFrame("Frame", nil, instance.baseFrame, "BackdropTemplate")
+            border:SetAllPoints(instance.baseFrame)
+            border:SetFrameLevel(instance.baseFrame:GetFrameLevel() + 1)
+            instance.baseFrame.damiaBorder = border
+        end
+        instance.baseFrame.damiaBorder:SetBackdrop({
+            edgeFile = "Interface\\Buttons\\WHITE8X8",
+            edgeSize = appearance.border_size,
+        })
+        instance.baseFrame.damiaBorder:SetBackdropBorderColor(
             appearance.color.border[1],
             appearance.color.border[2],
             appearance.color.border[3],

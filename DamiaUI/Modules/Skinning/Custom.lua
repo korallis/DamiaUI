@@ -367,7 +367,7 @@ function CustomStyling:CreateStyledBorder(frame, borderColor, borderSize, corner
         frame.damiaBorder:Hide()
     end
     
-    local border = CreateFrame("Frame", nil, frame)
+    local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     border:SetAllPoints(frame)
     border:SetFrameLevel(frame:GetFrameLevel() + 1)
     
@@ -399,7 +399,7 @@ function CustomStyling:CreateFrameShadow(frame, shadowStyle)
         frame.damiaShadow:Hide()
     end
     
-    local shadow = CreateFrame("Frame", nil, frame)
+    local shadow = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     shadow:SetFrameLevel(frame:GetFrameLevel() - 1)
     shadow:SetPoint("TOPLEFT", frame, "TOPLEFT", shadowStyle.offset.x, shadowStyle.offset.y)
     shadow:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", shadowStyle.offset.x, shadowStyle.offset.y)

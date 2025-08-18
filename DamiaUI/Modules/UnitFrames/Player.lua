@@ -214,6 +214,9 @@ local function UpdateClassPower(classPower, unit, powerType, current, max, modRa
     end
 end
 
+-- Forward declaration for UpdatePlayerThreat
+local UpdatePlayerThreat
+
 --[[
     Player frame layout function
     Integrates with the main Damia layout while adding player-specific elements
@@ -260,7 +263,7 @@ end
 --[[
     Update player threat indicator based on current target
 ]]
-local function UpdatePlayerThreat(self)
+UpdatePlayerThreat = function(self)
     if not self.ThreatIndicator or not UnitExists("target") then 
         if self.ThreatIndicator then
             self.ThreatIndicator:SetAlpha(0)

@@ -365,9 +365,9 @@ function ActionBars:SetupButtonVisuals(button, config)
         checkedTexture:SetColorTexture(BUTTON_COLORS.checked.r, BUTTON_COLORS.checked.g, BUTTON_COLORS.checked.b, BUTTON_COLORS.checked.a)
     end
     
-    -- Create border
+    -- Create border (BackdropTemplate is required for SetBackdrop on Retail)
     if not button.border then
-        button.border = CreateFrame("Frame", nil, button.backdrop)
+        button.border = CreateFrame("Frame", nil, button.backdrop, "BackdropTemplate")
         button.border:SetAllPoints()
         button.border:SetBackdrop({
             edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -739,4 +739,4 @@ function ActionBars:IsInitialized()
 end
 
 -- Register module with engine
-DamiaUI.RegisterModule("ActionBars", ActionBars, moduleDependencies)
+DamiaUI:RegisterModule("ActionBars", ActionBars, moduleDependencies)
