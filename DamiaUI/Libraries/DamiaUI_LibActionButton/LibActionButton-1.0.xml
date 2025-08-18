@@ -1,0 +1,14 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <!--
+        LibActionButton-1.0 XML Loader
+        
+        LibActionButton provides action button functionality that's compatible with Blizzard's
+        action button system but with enhanced customization options. It allows addons to create
+        custom action bars that work seamlessly with WoW's action system.
+        
+        Compatible with WoW 11.2 (110200) and maintains backwards compatibility.
+    -->
+    
+    <Script file="LibActionButton-1.0.lua"/>
+    
+</Ui>

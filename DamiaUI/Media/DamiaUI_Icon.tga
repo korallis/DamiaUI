@@ -1,0 +1,32 @@
+TGA Header - DamiaUI 64x64 Icon Placeholder
+==============================================
+This is a placeholder TGA file for the DamiaUI addon icon.
+
+Since this is a text representation, the actual TGA file would need to be created 
+using image editing software with the following specifications:
+
+Resolution: 64x64 pixels
+Format: 24-bit TGA or 32-bit TGA with alpha channel
+Color Profile: sRGB
+
+Design Elements:
+- Background: Dark gray (RGB: 26, 26, 26) - (r=0.1, g=0.1, b=0.1)
+- Primary Element: Stylized "D" in orange (RGB: 204, 128, 26) - (r=0.8, g=0.5, b=0.1)
+- Border/Accent: Medium gray (RGB: 77, 77, 77) - (r=0.3, g=0.3, b=0.3)
+
+The "D" should be:
+- Bold, modern font
+- Centered in the icon
+- Slightly beveled or with subtle shadow for depth
+- Professional appearance suitable for addon selection screen
+
+To create the actual TGA file:
+1. Use GIMP, Photoshop, or similar image editor
+2. Create 64x64 canvas with transparent background
+3. Add dark background rectangle with rounded corners (2-3px radius)
+4. Add stylized "D" in orange color
+5. Add subtle border or glow effect in medium gray
+6. Export as 24-bit TGA format
+7. Convert to BLP using WoW tools or BLP converter
+
+Note: This text file should be replaced with an actual TGA image file.

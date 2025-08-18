@@ -1,0 +1,14 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <!--
+        LibDataBroker-1.1 XML Loader
+        
+        LibDataBroker provides a framework for addon communication and data sharing.
+        It's commonly used for minimap buttons, information display systems, and 
+        inter-addon communication.
+        
+        Compatible with WoW 11.2 (110200) and maintains backwards compatibility.
+    -->
+    
+    <Script file="LibDataBroker-1.1.lua"/>
+    
+</Ui>

@@ -1,0 +1,39 @@
+# Ignore everything except README.md and DamiaUI folder
+/*
+!/README.md
+!/DamiaUI/
+!/.gitignore
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE Files
+.vscode/
+.idea/
+*.sublime-*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Logs
+*.log
+
+# Local development files
+.env
+.env.local
+
+# Documentation folders (not for public repo)
+/wow-documentation/
+/project-documentation/
+/compass_artifact_wf-f8a9cc17-7f2e-4b78-b11d-cdb3bdf9fa5b_text_markdown.md
+
+# Scripts
+*.sh
+
+# Build artifacts
+*.zip
+*.tar.gz

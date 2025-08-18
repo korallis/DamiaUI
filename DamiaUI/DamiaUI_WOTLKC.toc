@@ -1,0 +1,90 @@
+## Interface: 30403
+## Title: |cffCC8010DamiaUI|r
+## Notes: Complete interface replacement with centered layout inspired by classic Damia design. Features unit frames, action bars, skinning, and comprehensive configuration. Wrath of the Lich King Classic compatible.
+## Notes-deDE: Vollständiger Oberflächenersatz mit zentriertem Layout im klassischen Damia-Design. Enthält Einheitenrahmen, Aktionsleisten, Skins und umfassende Konfiguration. Wrath of the Lich King Classic kompatibel.
+## Notes-frFR: Remplacement complet de l'interface avec une disposition centrée inspirée du design Damia classique. Comprend les cadres d'unité, barres d'action, habillage et configuration complète. Compatible Wrath of the Lich King Classic.
+## Notes-esES: Reemplazo completo de la interfaz con diseño centrado inspirado en el diseño clásico de Damia. Incluye marcos de unidad, barras de acción, personalización y configuración integral. Compatible con Wrath of the Lich King Classic.
+## Notes-ptBR: Substituição completa da interface com layout centralizado inspirado no design clássico Damia. Possui quadros de unidade, barras de ação, personalização e configuração abrangente. Compatível com Wrath of the Lich King Classic.
+## Notes-ruRU: Полная замена интерфейса с центрированным макетом, вдохновленным классическим дизайном Damia. Включает рамки юнитов, панели действий, оформление и полную настройку. Совместим с Wrath of the Lich King Classic.
+## Notes-koKR: 클래식 Damia 디자인에서 영감을 받은 중앙 집중식 레이아웃을 갖춘 완전한 인터페이스 교체. 유닛 프레임, 액션 바, 스킨 및 포괄적인 구성을 제공합니다. Wrath of the Lich King Classic 호환.
+## Notes-zhCN: 受经典 Damia 设计启发的居中布局完整界面替换。包含单位框架、动作条、皮肤和全面配置。Wrath of the Lich King Classic 兼容。
+## Notes-zhTW: 受經典 Damia 設計啟發的居中佈局完整介面替換。包含單位框架、動作條、外觀和全面配置。Wrath of the Lich King Classic 相容。
+## Author: DamiaUI Development Team
+## Version: 1.0.0
+## SavedVariables: DamiaUIDB
+## SavedVariablesPerCharacter: DamiaUICharDB
+## DefaultState: enabled
+## LoadOnDemand: 0
+## OptionalDeps: WeakAuras, Details, Recount
+## X-Category: Interface Enhancements
+## X-License: MIT
+## X-Website: https://github.com/damiaui/damiaui
+## X-Feedback: https://github.com/damiaui/damiaui/issues
+## X-Donation: https://ko-fi.com/damiaui
+## X-Curse-Project-ID: 999999
+## X-WoWI-ID: 99999
+## X-Wago-ID: damiaui
+## X-Email: contact@damiaui.com
+## X-Discord: https://discord.gg/damiaui
+## X-CompatibleLocales: enUS, deDE, esES, esMX, frFR, itIT, koKR, ptBR, ruRU, zhCN, zhTW
+## X-Localizations: enUS, deDE, frFR, esES, ptBR, ruRU
+## X-Min-Interface: 30403
+## X-Max-Interface: 30403
+## X-LoadOn-Class: 
+## X-LoadOn-Race: 
+## X-LoadOn-Faction: 
+## X-Credits: Built on LibStub, Ace3, oUF, and Aurora frameworks. Special thanks to the WoW addon development community.
+## X-ReleaseDate: 2025-08-18
+## X-Build: Release
+## X-Embeds: LibStub, CallbackHandler-1.0, AceAddon-3.0, AceConfig-3.0, AceConsole-3.0, AceDB-3.0, AceDBOptions-3.0, AceGUI-3.0, oUF, Aurora, LibActionButton-1.0, LibDataBroker-1.1
+## IconTexture: Interface\AddOns\DamiaUI\Media\DamiaUI_Icon
+## X-GameVersion: WOTLKC
+## X-InterfaceVersion: 30403
+
+# Libraries (Load Order Critical)
+Libraries\LibStub\LibStub.lua
+Libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libraries\DamiaUI_oUF\oUF.xml
+Libraries\DamiaUI_Aurora\Aurora.xml
+Libraries\DamiaUI_Ace3\AceAddon-3.0\AceAddon-3.0.xml
+Libraries\DamiaUI_Ace3\AceConfig-3.0\AceConfig-3.0.xml
+Libraries\DamiaUI_Ace3\AceDB-3.0\AceDB-3.0.xml
+Libraries\DamiaUI_Ace3\AceDBOptions-3.0\AceDBOptions-3.0.xml
+Libraries\DamiaUI_Ace3\AceGUI-3.0\AceGUI-3.0.xml
+Libraries\DamiaUI_Ace3\AceConsole-3.0\AceConsole-3.0.xml
+Libraries\DamiaUI_LibActionButton\LibActionButton-1.0.xml
+Libraries\DamiaUI_LibDataBroker\LibDataBroker-1.1.xml
+
+# Configuration Defaults
+Config\Constants.lua
+Config\Defaults.lua
+
+# Core System (Order Critical)
+Core\Engine.lua
+Core\Utils.lua
+Core\Events.lua
+Core\Performance.lua
+Core\Memory.lua
+Core\Throttle.lua
+Core\Config.lua
+
+# Localization
+Locales\enUS.lua
+
+# Modules (Load after core)
+Modules\UnitFrames\UnitFrames.lua
+Modules\ActionBars\MainBar.lua
+Modules\ActionBars\SecondaryBars.lua
+Modules\ActionBars\PetBar.lua
+Modules\ActionBars\ActionBars.lua
+Modules\Interface\Interface.lua
+Modules\Skinning\Skinning.lua
+Modules\Integration\Templates\WeakAurasTemplates.lua
+Modules\Integration\Templates\DetailsTemplates.lua
+Modules\Integration\Templates\DBMTemplates.lua
+Modules\Integration\AutoConfig.lua
+Modules\Integration\Integration.lua
+Modules\Configuration\Migration.lua
+Modules\Configuration\Profiles.lua
+Modules\Configuration\PerformancePanel.lua
+Modules\Configuration\Configuration.lua

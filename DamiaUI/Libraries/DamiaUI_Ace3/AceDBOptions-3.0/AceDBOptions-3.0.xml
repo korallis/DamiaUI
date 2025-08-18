@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <!--
+        DamiaUI Embedded AceDBOptions-3.0 Library
+        
+        AceDBOptions-3.0 with DamiaUI namespace isolation.
+        AceDBOptions provides configuration interface for database profiles.
+        
+        Compatible with WoW 11.2
+    -->
+    
+    <Script file="AceDBOptions-3.0.lua"/>
+    
+</Ui>
