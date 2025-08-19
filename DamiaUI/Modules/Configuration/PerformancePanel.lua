@@ -228,4 +228,4 @@ function PerformancePanel:CreateControlsSection()
     end
     
     controlElements.optButtons = optButtons
-end"
+end

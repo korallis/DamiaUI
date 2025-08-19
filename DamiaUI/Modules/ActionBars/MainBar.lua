@@ -23,6 +23,8 @@ local addonName, DamiaUI = ...
 -- Local references for performance
 local _G = _G
 local pairs, ipairs = pairs, ipairs
+local string = string
+local strformat = string.format
 local CreateFrame = CreateFrame
 local UIParent = UIParent
 local InCombatLockdown = InCombatLockdown
@@ -33,6 +35,9 @@ local GetActionCooldown = GetActionCooldown
 local GetActionCount = GetActionCount
 local GetBindingKey = GetBindingKey
 local UIFrameFadeIn = UIFrameFadeIn
+
+-- Compatibility layer for modern API support
+local Compatibility = DamiaUI.Compatibility
 local UIFrameFadeOut = UIFrameFadeOut
 
 -- LibActionButton reference
@@ -40,6 +45,7 @@ local LAB = LibStub and LibStub:GetLibrary("LibActionButton-1.0", true)
 
 -- Compatibility layer
 local Compatibility = DamiaUI.Compatibility
+local CombatLockdown = DamiaUI.CombatLockdown
 
 -- Create MainBar module
 local MainBar = {
@@ -161,7 +167,7 @@ function MainBar:CreateActionButtons()
             
             -- Store reference in parent module
             if self.parentModule and self.parentModule.buttons then
-                self.parentModule.buttons[string.format("DamiaUI_MainButton%d", i)] = button
+                self.parentModule.buttons[strformat("DamiaUI_MainButton%d", i)] = button
             end
         else
             DamiaUI.Engine:LogError("Failed to create main action button %d", i)
@@ -178,7 +184,7 @@ function MainBar:CreateSingleButton(buttonIndex)
         return nil
     end
     
-    local buttonName = string.format("DamiaUI_MainButton%d", buttonIndex)
+    local buttonName = strformat("DamiaUI_MainButton%d", buttonIndex)
     local buttonSize = self.config.buttonSize or MAIN_BAR_DEFAULT_SIZE
     
     -- Create button using LibActionButton with correct action ID
@@ -230,47 +236,46 @@ function MainBar:SetupButtonStyling(button)
         button.damiaBorder = border
     end
     
-    -- Configure textures for different states
+    -- Configure textures for different states using compatibility layer
     local normalTexture = button:GetNormalTexture()
     if normalTexture then
-        -- Use compatibility layer for solid textures
-        if Compatibility then
-            Compatibility.SetSolidTexture(normalTexture, 0.3, 0.3, 0.3, 0.8)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(normalTexture, BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
         else
             normalTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
         end
-        normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
     end
     
     local pushedTexture = button:GetPushedTexture()
     if pushedTexture then
-        if Compatibility then
-            Compatibility.SetSolidTexture(pushedTexture, 0.5, 0.5, 0.5, 0.9)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(pushedTexture, BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
         else
             pushedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            pushedTexture:SetVertexColor(BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
         end
-        pushedTexture:SetVertexColor(BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
     end
     
     local highlightTexture = button:GetHighlightTexture()
     if highlightTexture then
-        if Compatibility then
-            Compatibility.SetSolidTexture(highlightTexture, 1.0, 1.0, 1.0, 0.3)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(highlightTexture, BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
         else
             highlightTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
         end
-        highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
         highlightTexture:SetBlendMode("ADD")
     end
     
     local checkedTexture = button:GetCheckedTexture()
     if checkedTexture then
-        if Compatibility then
-            Compatibility.SetSolidTexture(checkedTexture, 0.8, 0.5, 0.1, 0.6)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(checkedTexture, BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
         else
             checkedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
         end
-        checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
     end
 end
 
@@ -316,12 +321,12 @@ function MainBar:SetupButtonOverlays(button)
     -- Range indicator (red tint when out of range)
     button.rangeIndicator = button:CreateTexture(nil, "OVERLAY")
     button.rangeIndicator:SetAllPoints(button)
-    if Compatibility then
-        Compatibility.SetSolidTexture(button.rangeIndicator, 1.0, 0.1, 0.1, 0.5)
+    if Compatibility and Compatibility.SetSolidTexture then
+        Compatibility.SetSolidTexture(button.rangeIndicator, 1, 0.1, 0.1, 0)
     else
         button.rangeIndicator:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.rangeIndicator:SetVertexColor(1, 0.1, 0.1, 0)
     end
-    button.rangeIndicator:SetVertexColor(1, 0.1, 0.1, 0)
     button.rangeIndicator:SetBlendMode("MULTIPLY")
 end
 
@@ -347,40 +352,7 @@ POSITIONING AND LAYOUT
 ===============================================================================
 --]]
 
-function MainBar:PositionBar()
-    if not self.bar then return end
-    
-    -- Use configured position or default centered bottom position
-    local posX = self.config.position.x or MAIN_BAR_POSITION.x
-    local posY = self.config.position.y or MAIN_BAR_POSITION.y
-    
-    -- Position relative to screen center using Utils
-    if DamiaUI.Utils then
-        DamiaUI.Utils:PositionFrame(self.bar, posX, posY, "CENTER")
-    else
-        -- Fallback positioning
-        self.bar:ClearAllPoints()
-        self.bar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
-    end
-    
-    -- Apply scale
-    local scale = self.config.scale or 1.0
-    self.bar:SetScale(scale)
-    
-    DamiaUI.Engine:LogDebug("Main action bar positioned at (%d, %d) with scale %.2f", posX, posY, scale)
-end
-
-function MainBar:UpdateLayout()
-    if not self.bar or InCombatLockdown() then
-        return false
-    end
-    
-    -- Update configuration
-    self.config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars.main") or DamiaUI.Defaults.profile.actionbars.main
-    
-    -- Reposition bar
-    self:PositionBar()
-    
+function MainBar:UpdateBarLayout()
     -- Update button sizes and spacing
     local buttonSize = self.config.buttonSize or MAIN_BAR_DEFAULT_SIZE
     local spacing = self.config.buttonSpacing or MAIN_BAR_SPACING
@@ -397,6 +369,86 @@ function MainBar:UpdateLayout()
             local offsetX = (i - 1) * (buttonSize + spacing)
             button:ClearAllPoints()
             button:SetPoint("LEFT", self.bar, "LEFT", offsetX, 0)
+        end
+    end
+end
+
+function MainBar:PositionBar()
+    if not self.bar then return end
+    
+    -- Use configured position or default centered bottom position
+    local posX = self.config.position.x or MAIN_BAR_POSITION.x
+    local posY = self.config.position.y or MAIN_BAR_POSITION.y
+    local scale = self.config.scale or 1.0
+    
+    -- Position relative to screen center using Utils (with combat lockdown protection)
+    if CombatLockdown then
+        if DamiaUI.Utils then
+            CombatLockdown:SafeUpdateActionBars(function()
+                DamiaUI.Utils:PositionFrame(self.bar, posX, posY, "CENTER")
+            end)
+        else
+            CombatLockdown:SafeSetPoint(self.bar, "CENTER", UIParent, "CENTER", posX, posY)
+        end
+        CombatLockdown:SafeSetScale(self.bar, scale)
+    else
+        if not InCombatLockdown() then
+            if DamiaUI.Utils then
+                DamiaUI.Utils:PositionFrame(self.bar, posX, posY, "CENTER")
+            else
+                -- Fallback positioning
+                self.bar:ClearAllPoints()
+                self.bar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
+            end
+            self.bar:SetScale(scale)
+        else
+            DamiaUI.Engine:LogWarning("Main action bar positioning deferred due to combat lockdown")
+        end
+    end
+    
+    DamiaUI.Engine:LogDebug("Main action bar positioned at (%d, %d) with scale %.2f", posX, posY, scale)
+end
+
+function MainBar:UpdateLayout()
+    if not self.bar then
+        return false
+    end
+    
+    -- Update configuration
+    self.config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars.main") or DamiaUI.Defaults.profile.actionbars.main
+    
+    -- Safe layout update with combat lockdown protection
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            self:PositionBar()
+            self:UpdateBarLayout()
+        end)
+    else
+        if not InCombatLockdown() then
+            -- Reposition bar
+            self:PositionBar()
+            
+            -- Update button sizes and spacing
+            local buttonSize = self.config.buttonSize or MAIN_BAR_DEFAULT_SIZE
+            local spacing = self.config.buttonSpacing or MAIN_BAR_SPACING
+            local buttonCount = self.config.buttonCount or MAIN_BAR_BUTTON_COUNT
+            
+            -- Resize bar
+            local barWidth = buttonCount * buttonSize + (buttonCount - 1) * spacing
+            self.bar:SetSize(barWidth, buttonSize)
+            
+            -- Update button positions and sizes
+            for i, button in pairs(self.buttons) do
+                if button then
+                    button:SetSize(buttonSize, buttonSize)
+                    local offsetX = (i - 1) * (buttonSize + spacing)
+                    button:ClearAllPoints()
+                    button:SetPoint("LEFT", self.bar, "LEFT", offsetX, 0)
+                end
+            end
+        else
+            DamiaUI.Engine:LogWarning("Main action bar layout update deferred due to combat lockdown")
+            return false
         end
     end
     
@@ -491,7 +543,7 @@ end
 function MainBar:UpdateKeybindText(button)
     if not button or not button.keybindText then return end
     
-    local key = GetBindingKey(string.format("ACTIONBUTTON%d", button.damiaIndex))
+    local key = GetBindingKey(strformat("ACTIONBUTTON%d", button.damiaIndex))
     
     if key then
         -- Abbreviate common modifier keys
@@ -617,6 +669,21 @@ function MainBar:Cleanup()
     self.initialized = false
     
     DamiaUI.Engine:LogDebug("Main action bar cleaned up")
+end
+
+-- Safe update methods with combat lockdown protection
+function MainBar:SafeUpdateLayout()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            self:UpdateLayout()
+        end)
+    else
+        if not InCombatLockdown() then
+            self:UpdateLayout()
+        else
+            DamiaUI.Engine:LogWarning("Main bar layout update deferred due to combat lockdown")
+        end
+    end
 end
 
 -- Export MainBar module

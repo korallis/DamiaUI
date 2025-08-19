@@ -6,7 +6,8 @@
     in the classic Damia UI symmetrical layout design.
 ]]
 
-local addonName, DamiaUI = ...
+local addonName = ...
+local DamiaUI = _G.DamiaUI
 if not DamiaUI then return end
 
 -- Local references for performance
@@ -16,10 +17,70 @@ local UnitHealth, UnitHealthMax = UnitHealth, UnitHealthMax
 local UnitPower, UnitPowerMax, UnitPowerType = UnitPower, UnitPowerMax, UnitPowerType
 local GetPowerBarColor = GetPowerBarColor
 local CreateFrame = CreateFrame
+local InCombatLockdown = InCombatLockdown
 
 -- Module dependencies
 local oUF = DamiaUI.Libraries.oUF
 local Aurora = DamiaUI.Libraries.Aurora
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[
+    Safe frame positioning with combat lockdown protection
+--]]
+local function SafePositionPlayerFrame(self)
+    if not self then return end
+    
+    local x, y = DamiaUI.UnitFrames.GetCenterPosition(PLAYER_CONFIG.position.x, PLAYER_CONFIG.position.y)
+    
+    if CombatLockdown then
+        CombatLockdown:SafeSetPoint(self, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+        CombatLockdown:SafeSetSize(self, PLAYER_CONFIG.size.width, PLAYER_CONFIG.size.height)
+        CombatLockdown:SafeSetScale(self, PLAYER_CONFIG.scale)
+    else
+        if not InCombatLockdown() then
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            self:SetSize(PLAYER_CONFIG.size.width, PLAYER_CONFIG.size.height)
+            self:SetScale(PLAYER_CONFIG.scale)
+        else
+            DamiaUI.Engine:LogWarning("Player frame positioning deferred due to combat lockdown")
+        end
+    end
+end
+
+--[[
+    Safe player element updates with combat lockdown protection
+--]]
+local function SafeUpdatePlayerElements(self)
+    if not self then return end
+    
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            -- Update player-specific elements that may require secure frame operations
+            if self.Resting then
+                self.Resting:SetShown(IsResting())
+            end
+            if self.Combat then
+                self.Combat:SetShown(UnitAffectingCombat("player"))
+            end
+            if self.PvP then
+                self.PvP:SetShown(UnitIsPVP("player"))
+            end
+        end)
+    else
+        if not InCombatLockdown() then
+            if self.Resting then
+                self.Resting:SetShown(IsResting())
+            end
+            if self.Combat then
+                self.Combat:SetShown(UnitAffectingCombat("player"))
+            end
+            if self.PvP then
+                self.PvP:SetShown(UnitIsPVP("player"))
+            end
+        end
+    end
+end
 
 -- Player frame specific configuration
 local PLAYER_CONFIG = {
@@ -250,12 +311,24 @@ local function CreatePlayerLayout(self, unit)
         UpdatePlayerThreat(self)
     end)
     
-    -- Position the frame at player-specific coordinates
+    -- Position the frame at player-specific coordinates (with combat lockdown protection)
     local x, y = DamiaUI.UnitFrames.GetCenterPosition(PLAYER_CONFIG.position.x, PLAYER_CONFIG.position.y)
-    self:ClearAllPoints()
-    self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-    self:SetSize(PLAYER_CONFIG.size.width, PLAYER_CONFIG.size.height)
-    self:SetScale(PLAYER_CONFIG.scale)
+    
+    if CombatLockdown then
+        CombatLockdown:SafeSetPoint(self, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+        CombatLockdown:SafeSetSize(self, PLAYER_CONFIG.size.width, PLAYER_CONFIG.size.height)
+        CombatLockdown:SafeSetScale(self, PLAYER_CONFIG.scale)
+    else
+        -- Fallback for when CombatLockdown is not available
+        if not InCombatLockdown() then
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            self:SetSize(PLAYER_CONFIG.size.width, PLAYER_CONFIG.size.height)
+            self:SetScale(PLAYER_CONFIG.scale)
+        else
+            DamiaUI.Engine:LogWarning("Player frame positioning deferred due to combat lockdown")
+        end
+    end
     
     return self
 end
@@ -358,21 +431,36 @@ end
 local function SetPlayerConfig(key, value)
     if PLAYER_CONFIG[key] ~= nil then
         PLAYER_CONFIG[key] = value
-        -- Trigger frame update if needed
+        -- Trigger frame update if needed (with combat lockdown protection)
         local playerFrame = DamiaUI.UnitFrames:GetFrame("player")
         if playerFrame then
-            DamiaUI.UnitFrames:RefreshFrame("player")
+            if CombatLockdown then
+                CombatLockdown:SafeUpdateUnitFrames(function()
+                    DamiaUI.UnitFrames:RefreshFrame("player")
+                end)
+            else
+                -- Fallback for when CombatLockdown is not available
+                if not InCombatLockdown() then
+                    DamiaUI.UnitFrames:RefreshFrame("player")
+                else
+                    DamiaUI.Engine:LogWarning("Player frame refresh deferred due to combat lockdown")
+                end
+            end
         end
     end
 end
 
--- Export player-specific functions
-DamiaUI.UnitFrames.Player = {
-    CreateLayout = CreatePlayerLayout,
-    UpdateHealth = UpdatePlayerHealth,
-    UpdatePower = UpdatePlayerPower,
-    UpdateClassPower = UpdateClassPower,
-    UpdateThreat = UpdatePlayerThreat,
-    GetConfig = GetPlayerConfig,
-    SetConfig = SetPlayerConfig
-}
+-- Export player-specific functions (only if UnitFrames module exists)
+if DamiaUI.UnitFrames and type(DamiaUI.UnitFrames) == "table" then
+    DamiaUI.UnitFrames.Player = {
+        CreateLayout = CreatePlayerLayout,
+        UpdateHealth = UpdatePlayerHealth,
+        UpdatePower = UpdatePlayerPower,
+        UpdateClassPower = UpdateClassPower,
+        UpdateThreat = UpdatePlayerThreat,
+        GetConfig = GetPlayerConfig,
+        SetConfig = SetPlayerConfig,
+        SafePosition = SafePositionPlayerFrame,
+        SafeUpdateElements = SafeUpdatePlayerElements
+    }
+end

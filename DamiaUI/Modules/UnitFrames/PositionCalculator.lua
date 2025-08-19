@@ -513,4 +513,140 @@ function PositionCalculator.BatchCalculatePositions(frameList, layoutName)
     end
     
     return positions
-end\n\n--[[\n    Cache management and cleanup\n]]\nfunction PositionCalculator.CleanupCache()\n    local currentTime = GetTime()\n    \n    if currentTime - lastCacheCleanup < 30 then -- Cleanup every 30 seconds\n        return\n    end\n    \n    lastCacheCleanup = currentTime\n    local itemsRemoved = 0\n    \n    for key, entry in pairs(calculationCache) do\n        if currentTime - entry.timestamp > cacheExpiry then\n            calculationCache[key] = nil\n            itemsRemoved = itemsRemoved + 1\n        end\n    end\n    \n    if itemsRemoved > 0 and DamiaUI.Engine then\n        DamiaUI.Engine:LogDebug(\"Position calculator cache cleanup: %d items removed\", itemsRemoved)\n    end\nend\n\n--[[\n    Get cache statistics for debugging\n]]\nfunction PositionCalculator.GetCacheStats()\n    local stats = {\n        totalEntries = 0,\n        expiredEntries = 0,\n        cacheHitRate = 0\n    }\n    \n    local currentTime = GetTime()\n    \n    for key, entry in pairs(calculationCache) do\n        stats.totalEntries = stats.totalEntries + 1\n        if currentTime - entry.timestamp > cacheExpiry then\n            stats.expiredEntries = stats.expiredEntries + 1\n        end\n    end\n    \n    return stats\nend\n\n--[[\n    Force cache invalidation\n]]\nfunction PositionCalculator.InvalidateCache(pattern)\n    if pattern then\n        local itemsRemoved = 0\n        for key in pairs(calculationCache) do\n            if string.find(key, pattern) then\n                calculationCache[key] = nil\n                itemsRemoved = itemsRemoved + 1\n            end\n        end\n        \n        if DamiaUI.Engine then\n            DamiaUI.Engine:LogDebug(\"Cache invalidated: %d items matching '%s'\", itemsRemoved, pattern)\n        end\n    else\n        calculationCache = {}\n        if DamiaUI.Engine then\n            DamiaUI.Engine:LogDebug(\"Cache completely invalidated\")\n        end\n    end\nend\n\n--[[\n    Enhanced positioning with collision detection\n]]\nfunction PositionCalculator.PositionWithCollisionAvoidance(frameType, baseX, baseY, existingFrames)\n    local x, y = PositionCalculator.GetAdvancedPosition(frameType, baseX, baseY)\n    \n    -- Simple collision avoidance (can be enhanced further)\n    if existingFrames then\n        local frameWidth = 200 -- Default frame width\n        local frameHeight = 50 -- Default frame height\n        local minDistance = 60 -- Minimum distance between frames\n        \n        for _, existingFrame in pairs(existingFrames) do\n            local distance = math.sqrt((x - existingFrame.x)^2 + (y - existingFrame.y)^2)\n            if distance < minDistance then\n                -- Move frame away from collision\n                local angle = math.atan2(y - existingFrame.y, x - existingFrame.x)\n                x = existingFrame.x + math.cos(angle) * minDistance\n                y = existingFrame.y + math.sin(angle) * minDistance\n            end\n        end\n    end\n    \n    return x, y\nend\n\n--[[\n    Register for display change events with enhanced monitoring\n]]\nfunction PositionCalculator.Initialize()\n    -- Create event frame for monitoring display changes\n    local eventFrame = CreateFrame(\"Frame\", \"DamiaUIPositionCalculatorMonitor\")\n    eventFrame:RegisterEvent(\"UI_SCALE_CHANGED\")\n    eventFrame:RegisterEvent(\"DISPLAY_SIZE_CHANGED\")\n    eventFrame:SetScript(\"OnEvent\", function(self, event, ...)\n        -- Invalidate cache on resolution changes\n        PositionCalculator.InvalidateCache()\n        UpdateEnvironment()\n        \n        if DamiaUI.UnitFrames and DamiaUI.UnitFrames.RefreshAllFrames then\n            DamiaUI.UnitFrames:RefreshAllFrames()\n        end\n    end)\n    \n    -- Periodic cache cleanup\n    local cleanupTimer = 0\n    eventFrame:SetScript(\"OnUpdate\", function(self, elapsed)\n        cleanupTimer = cleanupTimer + elapsed\n        if cleanupTimer >= 30 then -- Every 30 seconds\n            cleanupTimer = 0\n            PositionCalculator.CleanupCache()\n        end\n    end)\n    \n    -- Initial environment setup\n    UpdateEnvironment()\n    \n    if DamiaUI.Engine then\n        DamiaUI.Engine:LogInfo(\"Enhanced Position Calculator initialized\")\n    end\nend\n\n-- Export the module\nDamiaUI.PositionCalculator = PositionCalculator
+end
+
+--[[
+    Cache management and cleanup
+]]
+function PositionCalculator.CleanupCache()
+    local currentTime = GetTime()
+    
+    if currentTime - lastCacheCleanup < 30 then -- Cleanup every 30 seconds
+        return
+    end
+    
+    lastCacheCleanup = currentTime
+    local itemsRemoved = 0
+    
+    for key, entry in pairs(calculationCache) do
+        if currentTime - entry.timestamp > cacheExpiry then
+            calculationCache[key] = nil
+            itemsRemoved = itemsRemoved + 1
+        end
+    end
+    
+    if itemsRemoved > 0 and DamiaUI.Engine then
+        DamiaUI.Engine:LogDebug("Position calculator cache cleanup: %d items removed", itemsRemoved)
+    end
+end
+
+--[[
+    Get cache statistics for debugging
+]]
+function PositionCalculator.GetCacheStats()
+    local stats = {
+        totalEntries = 0,
+        expiredEntries = 0,
+        cacheHitRate = 0
+    }
+    
+    local currentTime = GetTime()
+    
+    for key, entry in pairs(calculationCache) do
+        stats.totalEntries = stats.totalEntries + 1
+        if currentTime - entry.timestamp > cacheExpiry then
+            stats.expiredEntries = stats.expiredEntries + 1
+        end
+    end
+    
+    return stats
+end
+
+--[[
+    Force cache invalidation
+]]
+function PositionCalculator.InvalidateCache(pattern)
+    if pattern then
+        local itemsRemoved = 0
+        for key in pairs(calculationCache) do
+            if string.find(key, pattern) then
+                calculationCache[key] = nil
+                itemsRemoved = itemsRemoved + 1
+            end
+        end
+        
+        if DamiaUI.Engine then
+            DamiaUI.Engine:LogDebug("Cache invalidated: %d items matching '%s'", itemsRemoved, pattern)
+        end
+    else
+        calculationCache = {}
+        if DamiaUI.Engine then
+            DamiaUI.Engine:LogDebug("Cache completely invalidated")
+        end
+    end
+end
+
+--[[
+    Enhanced positioning with collision detection
+]]
+function PositionCalculator.PositionWithCollisionAvoidance(frameType, baseX, baseY, existingFrames)
+    local x, y = PositionCalculator.GetAdvancedPosition(frameType, baseX, baseY)
+    
+    -- Simple collision avoidance (can be enhanced further)
+    if existingFrames then
+        local frameWidth = 200 -- Default frame width
+        local frameHeight = 50 -- Default frame height
+        local minDistance = 60 -- Minimum distance between frames
+        
+        for _, existingFrame in pairs(existingFrames) do
+            local distance = math.sqrt((x - existingFrame.x)^2 + (y - existingFrame.y)^2)
+            if distance < minDistance then
+                -- Move frame away from collision
+                local angle = math.atan2(y - existingFrame.y, x - existingFrame.x)
+                x = existingFrame.x + math.cos(angle) * minDistance
+                y = existingFrame.y + math.sin(angle) * minDistance
+            end
+        end
+    end
+    
+    return x, y
+end
+
+--[[
+    Register for display change events with enhanced monitoring
+]]
+function PositionCalculator.Initialize()
+    -- Create event frame for monitoring display changes
+    local eventFrame = CreateFrame("Frame", "DamiaUIPositionCalculatorMonitor")
+    eventFrame:RegisterEvent("UI_SCALE_CHANGED")
+    eventFrame:RegisterEvent("DISPLAY_SIZE_CHANGED")
+    eventFrame:SetScript("OnEvent", function(self, event, ...)
+        -- Invalidate cache on resolution changes
+        PositionCalculator.InvalidateCache()
+        UpdateEnvironment()
+        
+        if DamiaUI.UnitFrames and DamiaUI.UnitFrames.RefreshAllFrames then
+            DamiaUI.UnitFrames:RefreshAllFrames()
+        end
+    end)
+    
+    -- Periodic cache cleanup
+    local cleanupTimer = 0
+    eventFrame:SetScript("OnUpdate", function(self, elapsed)
+        cleanupTimer = cleanupTimer + elapsed
+        if cleanupTimer >= 30 then -- Every 30 seconds
+            cleanupTimer = 0
+            PositionCalculator.CleanupCache()
+        end
+    end)
+    
+    -- Initial environment setup
+    UpdateEnvironment()
+    
+    if DamiaUI.Engine then
+        DamiaUI.Engine:LogInfo("Enhanced Position Calculator initialized")
+    end
+end
+
+-- Export the module
+DamiaUI.PositionCalculator = PositionCalculator

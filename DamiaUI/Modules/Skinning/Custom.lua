@@ -24,6 +24,9 @@ local C_Timer = C_Timer
 local math = math
 local tinsert = table.insert
 
+-- Compatibility layer for modern API support
+local Compatibility = DamiaUI.Compatibility
+
 -- Initialize Custom styling module
 local CustomStyling = {}
 DamiaUI.Skinning = DamiaUI.Skinning or {}
@@ -339,7 +342,11 @@ function CustomStyling:CreateStyledBackground(frame, backgroundColor, gradient)
     
     if gradient and gradient.orientation then
         -- Create gradient background
-        bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(bg, 1, 1, 1, 1)
+        else
+            bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+        end
         bg:SetGradientAlpha(
             gradient.orientation,
             gradient.startColor.r, gradient.startColor.g, gradient.startColor.b, gradient.startColor.a,
@@ -347,8 +354,12 @@ function CustomStyling:CreateStyledBackground(frame, backgroundColor, gradient)
         )
     else
         -- Solid color background
-        bg:SetTexture("Interface\\Buttons\\WHITE8X8")
-        bg:SetVertexColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(bg, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
+        else
+            bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+            bg:SetVertexColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a)
+        end
     end
     
     frame.damiaBackground = bg
@@ -439,8 +450,12 @@ function CustomStyling:CreateTitleBar(frame, titleStyle)
     -- Title bar background
     local bg = titleBar:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints(titleBar)
-    bg:SetTexture("Interface\\Buttons\\WHITE8X8")
-    bg:SetVertexColor(titleStyle.background.r, titleStyle.background.g, titleStyle.background.b, titleStyle.background.a)
+    if Compatibility and Compatibility.SetSolidTexture then
+        Compatibility.SetSolidTexture(bg, titleStyle.background.r, titleStyle.background.g, titleStyle.background.b, titleStyle.background.a)
+    else
+        bg:SetTexture("Interface\\Buttons\\WHITE8X8")
+        bg:SetVertexColor(titleStyle.background.r, titleStyle.background.g, titleStyle.background.b, titleStyle.background.a)
+    end
     
     -- Title text
     local titleText = titleBar:CreateFontString(nil, "OVERLAY")
@@ -525,13 +540,17 @@ function CustomStyling:CreateButtonGlow(frame, glowStyle)
     
     local glowTexture = glow:CreateTexture(nil, "OVERLAY")
     glowTexture:SetAllPoints(glow)
-    glowTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-    glowTexture:SetVertexColor(
-        glowStyle.color.r,
-        glowStyle.color.g,
-        glowStyle.color.b,
-        0 -- Start invisible
-    )
+    if Compatibility and Compatibility.SetSolidTexture then
+        Compatibility.SetSolidTexture(glowTexture, glowStyle.color.r, glowStyle.color.g, glowStyle.color.b, 0)
+    else
+        glowTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+        glowTexture:SetVertexColor(
+            glowStyle.color.r,
+            glowStyle.color.g,
+            glowStyle.color.b,
+            0 -- Start invisible
+        )
+    end
     glowTexture:SetBlendMode("ADD")
     
     -- Animation

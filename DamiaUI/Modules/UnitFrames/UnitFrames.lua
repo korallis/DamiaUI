@@ -6,7 +6,8 @@
     Damia UI centered design philosophy with modern Aurora styling integration.
 ]]
 
-local addonName, DamiaUI = ...
+local addonName = ...
+local DamiaUI = _G.DamiaUI
 if not DamiaUI then return end
 
 -- Local references for performance
@@ -19,6 +20,28 @@ local GetScreenWidth, GetScreenHeight = GetScreenWidth, GetScreenHeight
 -- Module initialization
 local UnitFrames = DamiaUI:NewModule("UnitFrames")
 
+-- Export module immediately so other files can use it
+DamiaUI.UnitFrames = UnitFrames
+
+-- Export utility functions that other unit frame files need
+UnitFrames.GetCenterPosition = function(offsetX, offsetY)
+    local screenWidth = GetScreenWidth()
+    local screenHeight = GetScreenHeight()
+    local uiScale = UIParent:GetEffectiveScale()
+    
+    -- Calculate actual center position accounting for UI scale
+    local centerX = screenWidth / 2
+    local centerY = screenHeight / 2
+    
+    -- Apply offsets and return scaled coordinates
+    return (centerX + offsetX) / uiScale, (centerY + offsetY) / uiScale
+end
+
+-- Forward declare functions that will be set later
+UnitFrames.CreateDamiaLayout = nil
+UnitFrames.GetFrame = nil
+UnitFrames.RefreshFrame = nil
+
 -- Module dependencies with validation
 local oUF = DamiaUI.Libraries and DamiaUI.Libraries.oUF
 local Aurora = DamiaUI.Libraries and DamiaUI.Libraries.Aurora
@@ -28,7 +51,7 @@ if not oUF then
     if DamiaUI.Engine then
         DamiaUI.Engine:LogError("oUF library not found - UnitFrames module cannot function")
     else
-        print("|cffff0000[DamiaUI Error]|r oUF library not found - UnitFrames module cannot function")
+        -- oUF library error logging removed
     end
     return
 end
@@ -201,6 +224,9 @@ local function CreateDamiaLayout(self, unit, ...)
     return self
 end
 
+-- Export the layout function
+UnitFrames.CreateDamiaLayout = CreateDamiaLayout
+
 --[[
     Health update function with value formatting
 ]]
@@ -340,6 +366,13 @@ end
 ]]
 function UnitFrames:GetFrame(unit)
     return frames[unit]
+end
+
+function UnitFrames:RefreshFrame(unit)
+    local frame = frames[unit]
+    if frame and frame.ForceUpdate then
+        frame:ForceUpdate()
+    end
 end
 
 --[[
@@ -611,5 +644,4 @@ function UnitFrames:SetContextualFilter(key, value)
     end
 end
 
--- Export module
-DamiaUI.UnitFrames = UnitFrames
+-- Module exported at the beginning of the file

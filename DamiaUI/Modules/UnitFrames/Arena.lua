@@ -17,15 +17,38 @@ local GetTime = GetTime
 local UnitName, UnitClass, UnitLevel = UnitName, UnitClass, UnitLevel
 local UnitHealth, UnitHealthMax = UnitHealth, UnitHealthMax
 local UnitPower, UnitPowerMax = UnitPower, UnitPowerMax
-local UnitBuff, UnitDebuff = UnitBuff, UnitDebuff
 local UnitCastingInfo, UnitChannelInfo = UnitCastingInfo, UnitChannelInfo
 local IsActiveBattlefieldArena = IsActiveBattlefieldArena
 local GetNumArenaOpponents = GetNumArenaOpponents
 local CreateFrame = CreateFrame
+local InCombatLockdown = InCombatLockdown
 
--- Module dependencies
-local oUF = DamiaUI.Libraries.oUF
-local Aurora = DamiaUI.Libraries.Aurora
+-- Module dependencies with safe checks
+local oUF = DamiaUI.Libraries and DamiaUI.Libraries.oUF
+local Aurora = DamiaUI.Libraries and DamiaUI.Libraries.Aurora
+local Compatibility = DamiaUI.Compatibility
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[
+    Safe arena frame operations with combat lockdown protection
+--]]
+local function SafeUpdateArenaFrames()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            UpdateArenaVisibility()
+        end)
+    else
+        if not InCombatLockdown() then
+            UpdateArenaVisibility()
+        else
+            DamiaUI.Engine:LogWarning("Arena frame update deferred due to combat lockdown")
+        end
+    end
+end
+
+-- Compatibility API references with nil checks
+local UnitBuff = Compatibility and Compatibility.UnitBuff or UnitBuff
+local UnitDebuff = Compatibility and Compatibility.UnitDebuff or UnitDebuff
 
 -- Arena frame configuration
 local ARENA_CONFIG = {
@@ -481,6 +504,11 @@ end
     Initialize arena frames
 ]]
 local function InitializeArenaFrames()
+    -- Validate oUF is available
+    if not oUF then
+        return -- oUF not available, can't create arena frames
+    end
+    
     -- Create container
     CreateArenaContainer()
     
@@ -593,15 +621,16 @@ local ArenaFrames = {
     GetFrames = function() return arenaFrames end,
     GetContainer = function() return arenaContainer end,
     UpdateTrinketCooldown = UpdateTrinketCooldown,
-    UpdateDiminishingReturns = UpdateDiminishingReturns
+    UpdateDiminishingReturns = UpdateDiminishingReturns,
+    SafeUpdate = SafeUpdateArenaFrames
 }
 
--- Export to DamiaUI namespace
-if not DamiaUI.UnitFrames then
-    DamiaUI.UnitFrames = {}
+-- Export to DamiaUI namespace (UnitFrames should already exist from UnitFrames.lua)
+if DamiaUI.UnitFrames then
+    DamiaUI.UnitFrames.Arena = ArenaFrames
 end
 
-DamiaUI.UnitFrames.Arena = ArenaFrames
-
--- Auto-initialize on load
-InitializeArenaFrames()
+-- Initialize later when addon is ready
+C_Timer.After(0, function()
+    InitializeArenaFrames()
+end)

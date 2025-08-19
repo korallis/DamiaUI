@@ -33,6 +33,9 @@ local GetPetActionCooldown = GetPetActionCooldown
 local GetPetActionSlotUsable = GetPetActionSlotUsable
 local GetShapeshiftFormInfo = GetShapeshiftFormInfo
 local GetNumShapeshiftForms = GetNumShapeshiftForms
+
+-- Compatibility layer for modern API support
+local Compatibility = DamiaUI.Compatibility
 local GetShapeshiftFormCooldown = GetShapeshiftFormCooldown
 local UIFrameFadeIn = UIFrameFadeIn
 local UIFrameFadeOut = UIFrameFadeOut
@@ -40,6 +43,9 @@ local C_Timer = C_Timer
 
 -- LibActionButton reference
 local LAB = LibStub and LibStub:GetLibrary("LibActionButton-1.0", true)
+
+-- Combat lockdown protection
+local CombatLockdown = DamiaUI.CombatLockdown
 
 -- Create PetBar module
 local PetBar = {
@@ -247,17 +253,31 @@ function PetBar:PositionPetBar()
     local config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars.pet") or DamiaUI.Defaults.profile.actionbars.pet
     local posX = config.position.x or PET_BAR_CONFIG.defaultPosition.x
     local posY = config.position.y or PET_BAR_CONFIG.defaultPosition.y
+    local scale = config.scale or 0.9
     
-    -- Position relative to screen center
-    if DamiaUI.Utils then
-        DamiaUI.Utils:PositionFrame(self.petBar, posX, posY, "CENTER")
+    -- Position relative to screen center (with combat lockdown protection)
+    if CombatLockdown then
+        if DamiaUI.Utils then
+            CombatLockdown:SafeUpdateActionBars(function()
+                DamiaUI.Utils:PositionFrame(self.petBar, posX, posY, "CENTER")
+            end)
+        else
+            CombatLockdown:SafeSetPoint(self.petBar, "CENTER", UIParent, "CENTER", posX, posY)
+        end
+        CombatLockdown:SafeSetScale(self.petBar, scale)
     else
-        self.petBar:ClearAllPoints()
-        self.petBar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
+        if not InCombatLockdown() then
+            if DamiaUI.Utils then
+                DamiaUI.Utils:PositionFrame(self.petBar, posX, posY, "CENTER")
+            else
+                self.petBar:ClearAllPoints()
+                self.petBar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
+            end
+            self.petBar:SetScale(scale)
+        else
+            DamiaUI.Engine:LogWarning("Pet bar positioning deferred due to combat lockdown")
+        end
     end
-    
-    -- Apply scale
-    self.petBar:SetScale(config.scale or 0.9)
 end
 
 --[[
@@ -404,24 +424,36 @@ function PetBar:SetupButtonStyling(button, config)
         button.damiaBorder = border
     end
     
-    -- Configure state textures
+    -- Configure state textures using compatibility layer
     local normalTexture = button:GetNormalTexture()
     if normalTexture then
-        normalTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(normalTexture, BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        else
+            normalTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        end
     end
     
     local highlightTexture = button:GetHighlightTexture()
     if highlightTexture then
-        highlightTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(highlightTexture, BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        else
+            highlightTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        end
         highlightTexture:SetBlendMode("ADD")
     end
     
     local checkedTexture = button:GetCheckedTexture()
     if checkedTexture then
-        checkedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(checkedTexture, BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        else
+            checkedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        end
     end
 end
 
@@ -729,18 +761,33 @@ LAYOUT AND STATE MANAGEMENT
 --]]
 
 function PetBar:UpdateLayout()
-    if InCombatLockdown() then
-        return false
-    end
-    
-    if self.petBar then
-        self:PositionPetBar()
-        -- Update pet button layout if needed
-    end
-    
-    if self.stanceBar then
-        self:PositionStanceBar()
-        -- Update stance button layout if needed
+    -- Safe layout update with combat lockdown protection
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            if self.petBar then
+                self:PositionPetBar()
+                -- Update pet button layout if needed
+            end
+            
+            if self.stanceBar then
+                self:PositionStanceBar()
+            end
+        end)
+    else
+        if InCombatLockdown() then
+            DamiaUI.Engine:LogWarning("Pet/Stance bar layout update deferred due to combat lockdown")
+            return false
+        end
+        
+        if self.petBar then
+            self:PositionPetBar()
+            -- Update pet button layout if needed
+        end
+        
+        if self.stanceBar then
+            self:PositionStanceBar()
+            -- Update stance button layout if needed
+        end
     end
     
     return true

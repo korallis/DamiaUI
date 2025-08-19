@@ -406,12 +406,15 @@ local function UpdateBuffFrame(unit)
             local name, texture, count, debuffType, duration, expirationTime, caster, _, _, spellId = UnitBuff(unit, i)
             if not name then break end
             
-            local isMine = caster == "player"
-            local canDispel = false -- Buffs generally aren't dispellable by the player
-            
-            if ShouldShowAura(name, spellId, debuffType, false, canDispel, isMine, duration) and buffIndex <= #frame.buffIcons then
-                UpdateAuraIcon(frame.buffIcons[buffIndex], name, texture, count, debuffType, duration, expirationTime, spellId, false, canDispel, isMine)
-                buffIndex = buffIndex + 1
+            -- Add nil checks for essential data
+            if texture and spellId then
+                local isMine = caster == "player"
+                local canDispel = false -- Buffs generally aren't dispellable by the player
+                
+                if ShouldShowAura(name, spellId, debuffType, false, canDispel, isMine, duration) and buffIndex <= #frame.buffIcons then
+                    UpdateAuraIcon(frame.buffIcons[buffIndex], name, texture, count, debuffType, duration, expirationTime, spellId, false, canDispel, isMine)
+                    buffIndex = buffIndex + 1
+                end
             end
         end
     end
@@ -422,11 +425,14 @@ local function UpdateBuffFrame(unit)
             local name, texture, count, debuffType, duration, expirationTime, caster, _, _, spellId, _, _, _, _, _, canDispel = UnitDebuff(unit, i)
             if not name then break end
             
-            local isMine = caster == "player"
-            
-            if ShouldShowAura(name, spellId, debuffType, true, canDispel, isMine, duration) and debuffIndex <= #frame.debuffIcons then
-                UpdateAuraIcon(frame.debuffIcons[debuffIndex], name, texture, count, debuffType, duration, expirationTime, spellId, true, canDispel, isMine)
-                debuffIndex = debuffIndex + 1
+            -- Add nil checks for essential data
+            if texture and spellId then
+                local isMine = caster == "player"
+                
+                if ShouldShowAura(name, spellId, debuffType, true, canDispel, isMine, duration) and debuffIndex <= #frame.debuffIcons then
+                    UpdateAuraIcon(frame.debuffIcons[debuffIndex], name, texture, count, debuffType, duration, expirationTime, spellId, true, canDispel, isMine)
+                    debuffIndex = debuffIndex + 1
+                end
             end
         end
     end

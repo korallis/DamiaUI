@@ -29,6 +29,9 @@ local UIParent = UIParent
 local GetScreenWidth, GetScreenHeight = GetScreenWidth, GetScreenHeight
 local InCombatLockdown = InCombatLockdown
 
+-- Compatibility layer for modern API support
+local Compatibility = DamiaUI.Compatibility
+
 -- Module initialization
 local DetailsIntegration = {}
 DamiaUI.Integration = DamiaUI.Integration or {}

@@ -25,10 +25,46 @@ local GetNumGroupMembers = GetNumGroupMembers
 local IsInRaid, IsInGroup = IsInRaid, IsInGroup
 local GetRaidRosterInfo = GetRaidRosterInfo
 local CreateFrame = CreateFrame
+local InCombatLockdown = InCombatLockdown
 
--- Module dependencies
-local oUF = DamiaUI.Libraries.oUF
-local Aurora = DamiaUI.Libraries.Aurora
+-- Module dependencies with safe checks
+local oUF = DamiaUI.Libraries and DamiaUI.Libraries.oUF
+local Aurora = DamiaUI.Libraries and DamiaUI.Libraries.Aurora
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[
+    Safe raid frame positioning with combat lockdown protection
+--]]
+local function SafePositionRaidFrames()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            PositionRaidFrames()
+        end)
+    else
+        if not InCombatLockdown() then
+            PositionRaidFrames()
+        else
+            DamiaUI.Engine:LogWarning("Raid frame positioning deferred due to combat lockdown")
+        end
+    end
+end
+
+--[[
+    Safe raid visibility updates with combat lockdown protection
+--]]
+local function SafeUpdateRaidVisibility()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            UpdateRaidVisibility()
+        end)
+    else
+        if not InCombatLockdown() then
+            UpdateRaidVisibility()
+        else
+            DamiaUI.Engine:LogWarning("Raid visibility update deferred due to combat lockdown")
+        end
+    end
+end
 
 -- Raid frame configuration
 local RAID_CONFIG = {
@@ -167,6 +203,9 @@ local function UpdateDispelIndicator(self)
     if not self.DispelIndicator then return end
     
     local playerClass = select(2, UnitClass("player"))
+    if not playerClass then
+        playerClass = "UNKNOWN"
+    end
     local canDispel = DISPEL_TYPES[playerClass] or {}
     
     -- Check for dispellable debuffs
@@ -175,7 +214,8 @@ local function UpdateDispelIndicator(self)
         local name, icon, count, debuffType = UnitDebuff(self.unit, i)
         if not name then break end
         
-        if debuffType and canDispel[debuffType] then
+        -- Add nil check for icon before using it
+        if debuffType and canDispel[debuffType] and icon then
             hasDispellable = true
             self.DispelIndicator:SetTexture(icon)
             break
@@ -449,6 +489,11 @@ end
     Initialize raid frames
 ]]
 local function InitializeRaidFrames()
+    -- Validate oUF is available
+    if not oUF then
+        return -- oUF not available, can't create raid frames
+    end
+    
     -- Create container
     CreateRaidContainer()
     
@@ -531,15 +576,17 @@ local RaidFrames = {
     GetConfig = GetRaidConfig,
     SetConfig = SetRaidConfig,
     GetFrames = function() return raidFrames end,
-    GetContainer = function() return raidContainer end
+    GetContainer = function() return raidContainer end,
+    SafePosition = SafePositionRaidFrames,
+    SafeUpdateVisibility = SafeUpdateRaidVisibility
 }
 
--- Export to DamiaUI namespace
-if not DamiaUI.UnitFrames then
-    DamiaUI.UnitFrames = {}
+-- Export to DamiaUI namespace (UnitFrames should already exist from UnitFrames.lua)
+if DamiaUI.UnitFrames then
+    DamiaUI.UnitFrames.Raid = RaidFrames
 end
 
-DamiaUI.UnitFrames.Raid = RaidFrames
-
--- Auto-initialize on load
-InitializeRaidFrames()
+-- Initialize later when addon is ready
+C_Timer.After(0, function()
+    InitializeRaidFrames()
+end)

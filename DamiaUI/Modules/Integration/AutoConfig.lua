@@ -461,8 +461,8 @@ end
 
 function AutoConfig:InitializeExportSystem()
     exportData.metadata.createdAt = time()
-    exportData.metadata.playerClass = select(2, UnitClass("player"))
-    exportData.metadata.playerRealm = GetRealmName()
+    exportData.metadata.playerClass = select(2, UnitClass("player")) or "UNKNOWN"
+    exportData.metadata.playerRealm = DamiaUI.Compatibility and DamiaUI.Compatibility.GetRealmName() or GetRealmName()
     exportData.metadata.gameVersion = DamiaUI.gameVersion.gameType
 end
 

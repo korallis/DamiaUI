@@ -30,7 +30,8 @@ local moduleDependencies = {
     "Utils",
     "Performance",
     "Memory",
-    "Throttle"
+    "Throttle",
+    "CombatLockdown"
 }
 
 -- Local references for performance
@@ -481,6 +482,18 @@ function Combat:OnEnable()
     
     -- Start combat state monitoring
     self:StartMonitoring()
+    
+    -- Initialize integration with CombatLockdown module
+    if DamiaUI.CombatLockdown then
+        -- Register a callback to be notified when queued operations are processed
+        DamiaUI.CombatLockdown:RegisterQueueCallback(function(successCount, failureCount)
+            DamiaUI.Engine:LogInfo("Combat lockdown queue processed: %d successful, %d failed", successCount, failureCount)
+        end, "Combat_QueueProcessor")
+        
+        DamiaUI.Engine:LogDebug("Combat lockdown integration initialized")
+    else
+        DamiaUI.Engine:LogWarning("CombatLockdown module not available - some operations may fail during combat")
+    end
 end
 
 function Combat:OnDisable()
@@ -495,6 +508,12 @@ function Combat:OnDisable()
     -- Cleanup configuration callbacks
     if DamiaUI.Config then
         DamiaUI.Config:UnregisterCallback("combat", "Combat_ConfigWatcher")
+    end
+    
+    -- Cleanup CombatLockdown integration
+    if DamiaUI.CombatLockdown then
+        DamiaUI.CombatLockdown:UnregisterQueueCallback("Combat_QueueProcessor")
+        DamiaUI.Engine:LogDebug("Combat lockdown integration cleaned up")
     end
 end
 

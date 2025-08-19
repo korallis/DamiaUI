@@ -18,7 +18,8 @@ Version: 1.0.0
 ===============================================================================
 --]]
 
-local addonName, DamiaUI = ...
+local addonName, addon = ...
+local DamiaUI = _G.DamiaUI
 
 -- Local references for performance
 local _G = _G
@@ -36,13 +37,22 @@ local GetActionLossOfControlCooldown = GetActionLossOfControlCooldown
 -- LibActionButton reference
 local LAB = LibStub and LibStub:GetLibrary("LibActionButton-1.0", true)
 
--- Create ActionBars module
-local ActionBars = {
+-- Combat lockdown protection
+local CombatLockdown = DamiaUI.CombatLockdown
+
+-- Create ActionBars module using DamiaUI's module system
+local ActionBars = DamiaUI and DamiaUI:NewModule("ActionBars") or {
     bars = {},
     buttons = {},
     initialized = false,
     blizzardBarsHidden = false,
 }
+
+-- Add module properties
+ActionBars.bars = {}
+ActionBars.buttons = {}
+ActionBars.initialized = false
+ActionBars.blizzardBarsHidden = false
 
 -- Module dependencies
 local moduleDependencies = {
@@ -667,37 +677,73 @@ end
 
 function ActionBars:UpdateBarLayout(barName)
     local bar = self.bars[barName]
-    if not bar or InCombatLockdown() then
+    if not bar then
         return
     end
     
     local config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars." .. barName) or DamiaUI.Defaults.profile.actionbars[barName]
     if not config then return end
     
-    -- Reposition bar
-    DamiaUI.Utils:PositionFrame(bar, config.position.x, config.position.y, "CENTER")
-    
-    -- Update bar scale
-    bar:SetScale(config.scale)
-    
-    -- Update button sizes and positions
-    if bar.buttons then
-        for i, button in pairs(bar.buttons) do
-            if button then
-                button:SetSize(config.buttonSize, config.buttonSize)
+    -- Safe layout update with combat lockdown protection
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            -- Reposition bar
+            DamiaUI.Utils:PositionFrame(bar, config.position.x, config.position.y, "CENTER")
+            
+            -- Update bar scale
+            bar:SetScale(config.scale)
+            
+            -- Update button sizes and positions
+            if bar.buttons then
+                for i, button in pairs(bar.buttons) do
+                    if button then
+                        button:SetSize(config.buttonSize, config.buttonSize)
+                        
+                        -- Reposition button within bar
+                        local offsetX = (i - 1) * (config.buttonSize + config.buttonSpacing)
+                        button:ClearAllPoints()
+                        button:SetPoint("LEFT", bar, "LEFT", offsetX, 0)
+                    end
+                end
                 
-                -- Reposition button within bar
-                local offsetX = (i - 1) * (config.buttonSize + config.buttonSpacing)
-                button:ClearAllPoints()
-                button:SetPoint("LEFT", bar, "LEFT", offsetX, 0)
+                -- Update bar size
+                bar:SetSize(
+                    config.buttonCount * (config.buttonSize + config.buttonSpacing) - config.buttonSpacing,
+                    config.buttonSize
+                )
             end
+        end)
+    else
+        if InCombatLockdown() then
+            DamiaUI.Engine:LogWarning("Action bar layout update deferred due to combat lockdown")
+            return
         end
         
-        -- Update bar size
-        bar:SetSize(
-            config.buttonCount * (config.buttonSize + config.buttonSpacing) - config.buttonSpacing,
-            config.buttonSize
-        )
+        -- Reposition bar
+        DamiaUI.Utils:PositionFrame(bar, config.position.x, config.position.y, "CENTER")
+        
+        -- Update bar scale
+        bar:SetScale(config.scale)
+        
+        -- Update button sizes and positions
+        if bar.buttons then
+            for i, button in pairs(bar.buttons) do
+                if button then
+                    button:SetSize(config.buttonSize, config.buttonSize)
+                    
+                    -- Reposition button within bar
+                    local offsetX = (i - 1) * (config.buttonSize + config.buttonSpacing)
+                    button:ClearAllPoints()
+                    button:SetPoint("LEFT", bar, "LEFT", offsetX, 0)
+                end
+            end
+            
+            -- Update bar size
+            bar:SetSize(
+                config.buttonCount * (config.buttonSize + config.buttonSpacing) - config.buttonSpacing,
+                config.buttonSize
+            )
+        end
     end
 end
 
@@ -712,13 +758,22 @@ function ActionBars:GetActionBar(barId)
 end
 
 function ActionBars:UpdateBarLayout()
-    if InCombatLockdown() then
-        DamiaUI.Engine:LogWarning("Cannot update bar layout during combat")
-        return
-    end
-    
-    for barName in pairs(self.bars) do
-        self:UpdateBarLayout(barName)
+    -- Safe layout update with combat lockdown protection
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            for barName in pairs(self.bars) do
+                self:UpdateBarLayout(barName)
+            end
+        end)
+    else
+        if InCombatLockdown() then
+            DamiaUI.Engine:LogWarning("Cannot update bar layout during combat")
+            return
+        end
+        
+        for barName in pairs(self.bars) do
+            self:UpdateBarLayout(barName)
+        end
     end
     
     DamiaUI.Engine:LogInfo("Action bar layout updated")
@@ -738,5 +793,23 @@ function ActionBars:IsInitialized()
     return self.initialized
 end
 
--- Register module with engine
-DamiaUI:RegisterModule("ActionBars", ActionBars, moduleDependencies)
+-- Safe update methods with combat lockdown protection
+function ActionBars:SafeUpdateLayout()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            self:UpdateBarLayout()
+        end)
+    else
+        if not InCombatLockdown() then
+            self:UpdateBarLayout()
+        else
+            DamiaUI.Engine:LogWarning("Action bars layout update deferred due to combat lockdown")
+        end
+    end
+end
+
+-- Module already registered via NewModule
+-- Export to DamiaUI namespace for external access
+if DamiaUI then
+    DamiaUI.ActionBars = ActionBars
+end

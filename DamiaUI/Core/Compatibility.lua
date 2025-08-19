@@ -7,17 +7,25 @@ multiple game versions (Retail, Classic Era, Wrath Classic, Cata Classic).
 
 This module ensures that the addon works correctly across all supported
 WoW versions by providing modern API replacements while maintaining
-backward compatibility.
+backward compatibility with legacy APIs.
 
 Features:
-- Automatic API version detection
+- Automatic API version detection and build number checking
+- Modern C_* namespace API support (C_UnitAuras, C_Spell, etc.)
 - Compatibility wrappers for deprecated functions
-- Multi-version support (11.2.x, 4.4.x, 3.4.x, 1.15.x)
-- Runtime API availability checking
+- Multi-version support (11.2.x+, 4.4.x, 3.4.x, 1.15.x)
+- Runtime API availability checking with caching
 - Performance optimized function references
+- Proper nil checking and parameter validation
+- Legacy return format preservation
+
+Supported Modern APIs:
+- C_UnitAuras.GetAuraDataByIndex, GetBuffDataByIndex, GetDebuffDataByIndex
+- C_Spell.GetSpellInfo, GetSpellName, GetSpellCooldown, etc.
+- Proper handling of UnitAuraInfo and SpellInfo structures
 
 Author: DamiaUI Development Team
-Version: 1.0.0
+Version: 2.0.0 - Updated for WoW 11.2+ API compatibility
 ===============================================================================
 --]]
 
@@ -33,6 +41,7 @@ local _G = _G
 local type = type
 local pcall = pcall
 local select = select
+local strsplit = strsplit
 
 -- Create Compatibility module
 local Compatibility = {}
@@ -52,6 +61,14 @@ local IS_RETAIL = WOW_VERSION_MAJOR >= 10
 local IS_CATA_CLASSIC = WOW_VERSION_MAJOR >= 4 and WOW_VERSION_MAJOR < 10
 local IS_WRATH_CLASSIC = WOW_VERSION_MAJOR >= 3 and WOW_VERSION_MAJOR < 4
 local IS_CLASSIC_ERA = WOW_VERSION_MAJOR >= 1 and WOW_VERSION_MAJOR < 3
+
+-- Build number for more precise version checking
+local BUILD_NUMBER = tonumber(WOW_BUILD) or 0
+
+-- Modern API availability (11.0+ generally)
+-- Note: These will be properly checked after APIExists is defined
+local HAS_MODERN_AURA_API = false
+local HAS_MODERN_SPELL_API = false
 
 -- WoW Project ID compatibility (may not exist in all versions)
 ---@diagnostic disable-next-line: undefined-global
@@ -100,6 +117,10 @@ local function SafeAPICall(func, ...)
     return nil
 end
 
+-- Initialize modern API availability flags after APIExists is defined
+HAS_MODERN_AURA_API = BUILD_NUMBER >= 110000 and APIExists("C_UnitAuras.GetAuraDataByIndex")
+HAS_MODERN_SPELL_API = BUILD_NUMBER >= 110000 and APIExists("C_Spell.GetSpellInfo")
+
 --[[
 ===============================================================================
 AURA SYSTEM COMPATIBILITY
@@ -108,36 +129,37 @@ AURA SYSTEM COMPATIBILITY
 
 -- UnitAura replacement with C_UnitAuras.GetAuraDataByIndex compatibility
 local function CompatibleUnitAura(unit, index, filter)
+    -- Validate parameters
+    if not unit or not index then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_UnitAuras.GetAuraDataByIndex") then
+    if HAS_MODERN_AURA_API and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
         local auraData = C_UnitAuras.GetAuraDataByIndex(unit, index, filter)
         if auraData then
-            -- Check API version for field names
-            local isDispellable = false
-            if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and select(4, GetBuildInfo()) >= 110000 then
-                -- Use new field names for 11.0+
-                isDispellable = auraData.isDispellable or false
-            else
-                -- Use legacy field names
-                isDispellable = auraData.canDispel or auraData.isDispellable or false
-            end
+            -- Convert modern structure to legacy return format
+            -- Return values match original UnitAura signature:
+            -- name, icon, count, debuffType, duration, expirationTime, source, isStealable, 
+            -- nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, isFromPlayerOrPlayerPet,
+            -- nameplateShowAll, timeMod, isDispellable
             
-            return auraData.name,
-                   auraData.icon,
-                   auraData.applications,
-                   auraData.dispelName,
-                   auraData.duration,
-                   auraData.expirationTime,
-                   auraData.sourceUnit,
-                   auraData.isStealable,
-                   auraData.nameplateShowPersonal,
-                   auraData.spellId,
-                   auraData.canApplyAura,
-                   auraData.isBossAura,
-                   auraData.isFromPlayerOrPlayerPet,
-                   auraData.nameplateShowAll,
-                   auraData.timeMod,
-                   isDispellable
+            return auraData.name or nil,
+                   auraData.icon or nil,
+                   auraData.applications or 0,
+                   auraData.dispelName or nil,
+                   auraData.duration or 0,
+                   auraData.expirationTime or 0,
+                   auraData.sourceUnit or nil,
+                   auraData.isStealable or false,
+                   auraData.nameplateShowPersonal or false,
+                   auraData.spellId or nil,
+                   auraData.canApplyAura or false,
+                   auraData.isBossAura or false,
+                   auraData.isFromPlayerOrPlayerPet or false,
+                   auraData.nameplateShowAll or false,
+                   auraData.timeMod or 1,
+                   (auraData.isDispellable ~= nil) and auraData.isDispellable or false
         end
         return nil
     end
@@ -151,13 +173,75 @@ local function CompatibleUnitAura(unit, index, filter)
     return nil
 end
 
--- UnitBuff compatibility wrapper
+-- UnitBuff compatibility wrapper  
 local function CompatibleUnitBuff(unit, index, filter)
+    -- Validate parameters
+    if not unit or not index then
+        return nil
+    end
+    
+    -- Modern API (11.0+) - use specific buff function if available
+    if HAS_MODERN_AURA_API and C_UnitAuras and C_UnitAuras.GetBuffDataByIndex then
+        local auraData = C_UnitAuras.GetBuffDataByIndex(unit, index)
+        if auraData then
+            -- Convert to legacy format
+            return auraData.name or nil,
+                   auraData.icon or nil,
+                   auraData.applications or 0,
+                   auraData.dispelName or nil,
+                   auraData.duration or 0,
+                   auraData.expirationTime or 0,
+                   auraData.sourceUnit or nil,
+                   auraData.isStealable or false,
+                   auraData.nameplateShowPersonal or false,
+                   auraData.spellId or nil,
+                   auraData.canApplyAura or false,
+                   auraData.isBossAura or false,
+                   auraData.isFromPlayerOrPlayerPet or false,
+                   auraData.nameplateShowAll or false,
+                   auraData.timeMod or 1,
+                   (auraData.isDispellable ~= nil) and auraData.isDispellable or false
+        end
+        return nil
+    end
+    
+    -- Fallback to general aura function
     return CompatibleUnitAura(unit, index, filter or "HELPFUL")
 end
 
 -- UnitDebuff compatibility wrapper
 local function CompatibleUnitDebuff(unit, index, filter)
+    -- Validate parameters
+    if not unit or not index then
+        return nil
+    end
+    
+    -- Modern API (11.0+) - use specific debuff function if available
+    if HAS_MODERN_AURA_API and C_UnitAuras and C_UnitAuras.GetDebuffDataByIndex then
+        local auraData = C_UnitAuras.GetDebuffDataByIndex(unit, index)
+        if auraData then
+            -- Convert to legacy format
+            return auraData.name or nil,
+                   auraData.icon or nil,
+                   auraData.applications or 0,
+                   auraData.dispelName or nil,
+                   auraData.duration or 0,
+                   auraData.expirationTime or 0,
+                   auraData.sourceUnit or nil,
+                   auraData.isStealable or false,
+                   auraData.nameplateShowPersonal or false,
+                   auraData.spellId or nil,
+                   auraData.canApplyAura or false,
+                   auraData.isBossAura or false,
+                   auraData.isFromPlayerOrPlayerPet or false,
+                   auraData.nameplateShowAll or false,
+                   auraData.timeMod or 1,
+                   (auraData.isDispellable ~= nil) and auraData.isDispellable or false
+        end
+        return nil
+    end
+    
+    -- Fallback to general aura function
     return CompatibleUnitAura(unit, index, filter or "HARMFUL")
 end
 
@@ -168,19 +252,26 @@ SPELL SYSTEM COMPATIBILITY
 --]]
 
 -- GetSpellInfo replacement with C_Spell.GetSpellInfo compatibility
-local function CompatibleGetSpellInfo(spellID)
+local function CompatibleGetSpellInfo(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.GetSpellInfo") then
-        local spellInfo = C_Spell.GetSpellInfo(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellInfo then
+        local spellInfo = C_Spell.GetSpellInfo(spellIdentifier)
         if spellInfo then
-            return spellInfo.name,
+            -- Convert modern structure to legacy return format:
+            -- name, rank, icon, castTime, minRange, maxRange, spellID, originalIcon
+            return spellInfo.name or nil,
                    nil, -- rank (removed in modern API)
-                   spellInfo.iconID,
-                   spellInfo.castTime,
-                   spellInfo.minRange,
-                   spellInfo.maxRange,
-                   spellInfo.spellID,
-                   spellInfo.originalIconID
+                   spellInfo.iconID or nil,
+                   spellInfo.castTime or 0,
+                   spellInfo.minRange or 0,
+                   spellInfo.maxRange or 0,
+                   spellInfo.spellID or nil,
+                   spellInfo.originalIconID or spellInfo.iconID
         end
         return nil
     end
@@ -188,62 +279,79 @@ local function CompatibleGetSpellInfo(spellID)
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellInfo and type(_G.GetSpellInfo) == "function" then
-        return GetSpellInfo(spellID)
+        return GetSpellInfo(spellIdentifier)
     end
     
     return nil
 end
 
 -- GetSpellCooldown replacement
-local function CompatibleGetSpellCooldown(spellID)
-    -- Modern API (11.0+)  
-    if APIExists("C_Spell.GetSpellCooldown") then
-        local cooldownInfo = C_Spell.GetSpellCooldown(spellID)
-        if cooldownInfo then
-            return cooldownInfo.startTime,
-                   cooldownInfo.duration,
-                   cooldownInfo.isEnabled,
-                   cooldownInfo.modRate
-        end
+local function CompatibleGetSpellCooldown(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
         return nil
+    end
+    
+    -- Modern API (11.0+)  
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellCooldown then
+        local cooldownInfo = C_Spell.GetSpellCooldown(spellIdentifier)
+        if cooldownInfo then
+            -- Convert to legacy format: startTime, duration, enabled, modRate
+            return cooldownInfo.startTime or 0,
+                   cooldownInfo.duration or 0,
+                   (cooldownInfo.isEnabled ~= nil) and cooldownInfo.isEnabled or true,
+                   cooldownInfo.modRate or 1
+        end
+        return 0, 0, true, 1
     end
     
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellCooldown and type(_G.GetSpellCooldown) == "function" then
-        return GetSpellCooldown(spellID)
+        return GetSpellCooldown(spellIdentifier)
     end
     
-    return nil
+    return 0, 0, true, 1
 end
 
 -- GetSpellTexture replacement
-local function CompatibleGetSpellTexture(spellID)
+local function CompatibleGetSpellTexture(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.GetSpellTexture") then
-        return C_Spell.GetSpellTexture(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellTexture then
+        return C_Spell.GetSpellTexture(spellIdentifier)
     end
     
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellTexture and type(_G.GetSpellTexture) == "function" then
-        return GetSpellTexture(spellID)
+        return GetSpellTexture(spellIdentifier)
     end
     
     return nil
 end
 
 -- GetSpellCharges replacement
-local function CompatibleGetSpellCharges(spellID)
+local function CompatibleGetSpellCharges(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.GetSpellCharges") then
-        local chargeInfo = C_Spell.GetSpellCharges(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellCharges then
+        local chargeInfo = C_Spell.GetSpellCharges(spellIdentifier)
         if chargeInfo then
-            return chargeInfo.currentCharges,
-                   chargeInfo.maxCharges,
-                   chargeInfo.cooldownStartTime,
-                   chargeInfo.cooldownDuration,
-                   chargeInfo.chargeModRate
+            -- Convert to legacy format: currentCharges, maxCharges, cooldownStartTime, cooldownDuration, chargeModRate
+            return chargeInfo.currentCharges or 0,
+                   chargeInfo.maxCharges or 0,
+                   chargeInfo.cooldownStartTime or 0,
+                   chargeInfo.cooldownDuration or 0,
+                   chargeInfo.chargeModRate or 1
         end
         return nil
     end
@@ -251,26 +359,28 @@ local function CompatibleGetSpellCharges(spellID)
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellCharges and type(_G.GetSpellCharges) == "function" then
-        return GetSpellCharges(spellID)
+        return GetSpellCharges(spellIdentifier)
     end
     
     return nil
 end
 
 -- IsUsableSpell replacement
-local function CompatibleIsUsableSpell(spellID)
+local function CompatibleIsUsableSpell(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return false, false
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.IsSpellUsable") then
-        local usableInfo = C_Spell.IsSpellUsable(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.IsSpellUsable then
+        local usableInfo = C_Spell.IsSpellUsable(spellIdentifier)
         if usableInfo then
-            -- Check API version for field names
-            if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE and select(4, GetBuildInfo()) >= 110000 then
-                -- Use new field names for 11.0+
-                return usableInfo.usable or false, usableInfo.insufficientPower or false
-            else
-                -- Use legacy field names
-                return usableInfo.isUsable or false, usableInfo.noMana or false
-            end
+            -- Convert to legacy format: isUsable, noMana
+            -- Handle different field names across versions
+            local isUsable = usableInfo.usable or usableInfo.isUsable or false
+            local noMana = usableInfo.insufficientPower or usableInfo.noMana or false
+            return isUsable, noMana
         end
         return false, false
     end
@@ -278,39 +388,157 @@ local function CompatibleIsUsableSpell(spellID)
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.IsUsableSpell and type(_G.IsUsableSpell) == "function" then
-        return IsUsableSpell(spellID)
+        return IsUsableSpell(spellIdentifier)
     end
     
     return false, false
 end
 
 -- GetSpellDescription replacement
-local function CompatibleGetSpellDescription(spellID)
+local function CompatibleGetSpellDescription(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.GetSpellDescription") then
-        return C_Spell.GetSpellDescription(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellDescription then
+        return C_Spell.GetSpellDescription(spellIdentifier)
     end
     
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellDescription and type(_G.GetSpellDescription) == "function" then
-        return GetSpellDescription(spellID)
+        return GetSpellDescription(spellIdentifier)
     end
     
     return nil
 end
 
 -- GetSpellCount replacement (now GetSpellCastCount)
-local function CompatibleGetSpellCount(spellID)
+local function CompatibleGetSpellCount(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
     -- Modern API (11.0+)
-    if APIExists("C_Spell.GetSpellCastCount") then
-        return C_Spell.GetSpellCastCount(spellID)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellCastCount then
+        return C_Spell.GetSpellCastCount(spellIdentifier)
     end
     
     -- Legacy API fallback with existence check
     ---@diagnostic disable-next-line: undefined-global
     if _G.GetSpellCount and type(_G.GetSpellCount) == "function" then
-        return GetSpellCount(spellID)
+        return GetSpellCount(spellIdentifier)
+    end
+    
+    return nil
+end
+
+-- Additional modern API wrappers for WoW 11.2+
+
+-- GetSpellName wrapper
+local function CompatibleGetSpellName(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
+    -- Modern API (11.0+)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellName then
+        return C_Spell.GetSpellName(spellIdentifier)
+    end
+    
+    -- Fallback to GetSpellInfo for name only
+    local name = CompatibleGetSpellInfo(spellIdentifier)
+    return name
+end
+
+-- IsSpellKnown replacement
+local function CompatibleIsSpellKnown(spellIdentifier, isPetSpell)
+    -- Validate parameter
+    if not spellIdentifier then
+        return false
+    end
+    
+    -- Modern API (11.0+)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.IsSpellKnown then
+        return C_Spell.IsSpellKnown(spellIdentifier, isPetSpell)
+    end
+    
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.IsSpellKnown and type(_G.IsSpellKnown) == "function" then
+        return IsSpellKnown(spellIdentifier, isPetSpell)
+    end
+    
+    return false
+end
+
+-- GetSpellSubtext replacement
+local function CompatibleGetSpellSubtext(spellIdentifier)
+    -- Validate parameter
+    if not spellIdentifier then
+        return nil
+    end
+    
+    -- Modern API (11.0+)
+    if HAS_MODERN_SPELL_API and C_Spell and C_Spell.GetSpellSubtext then
+        return C_Spell.GetSpellSubtext(spellIdentifier)
+    end
+    
+    -- Legacy API fallback with existence check
+    ---@diagnostic disable-next-line: undefined-global
+    if _G.GetSpellSubtext and type(_G.GetSpellSubtext) == "function" then
+        return GetSpellSubtext(spellIdentifier)
+    end
+    
+    return nil
+end
+
+-- Additional UnitAura helper functions
+
+-- Get aura by spell ID (convenience wrapper)
+local function CompatibleGetAuraBySpellID(unit, spellID, filter)
+    -- Validate parameters
+    if not unit or not spellID then
+        return nil
+    end
+    
+    -- Modern API (11.0+)
+    if HAS_MODERN_AURA_API and C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+        -- Use specific player aura function if querying player
+        if unit == "player" then
+            local auraData = C_UnitAuras.GetPlayerAuraBySpellID(spellID)
+            if auraData then
+                return auraData.name, auraData.icon, auraData.applications, auraData.dispelName,
+                       auraData.duration, auraData.expirationTime, auraData.sourceUnit,
+                       auraData.isStealable, auraData.nameplateShowPersonal, auraData.spellId,
+                       auraData.canApplyAura, auraData.isBossAura, auraData.isFromPlayerOrPlayerPet,
+                       auraData.nameplateShowAll, auraData.timeMod, auraData.isDispellable
+            end
+        end
+    end
+    
+    -- Fallback: iterate through auras to find by spell ID
+    local index = 1
+    while true do
+        local name, icon, count, debuffType, duration, expirationTime, source, isStealable,
+              nameplateShowPersonal, currentSpellID, canApplyAura, isBossDebuff,
+              isFromPlayerOrPlayerPet, nameplateShowAll, timeMod, isDispellable = CompatibleUnitAura(unit, index, filter)
+        
+        if not name then
+            break
+        end
+        
+        if currentSpellID == spellID then
+            return name, icon, count, debuffType, duration, expirationTime, source, isStealable,
+                   nameplateShowPersonal, currentSpellID, canApplyAura, isBossDebuff,
+                   isFromPlayerOrPlayerPet, nameplateShowAll, timeMod, isDispellable
+        end
+        
+        index = index + 1
     end
     
     return nil
@@ -515,14 +743,18 @@ function Compatibility:Initialize()
     self.UnitAura = CompatibleUnitAura
     self.UnitBuff = CompatibleUnitBuff  
     self.UnitDebuff = CompatibleUnitDebuff
+    self.GetAuraBySpellID = CompatibleGetAuraBySpellID
     
     -- Spell System
     self.GetSpellInfo = CompatibleGetSpellInfo
+    self.GetSpellName = CompatibleGetSpellName
     self.GetSpellCooldown = CompatibleGetSpellCooldown
     self.GetSpellTexture = CompatibleGetSpellTexture
     self.GetSpellCharges = CompatibleGetSpellCharges
     self.IsUsableSpell = CompatibleIsUsableSpell
+    self.IsSpellKnown = CompatibleIsSpellKnown
     self.GetSpellDescription = CompatibleGetSpellDescription
+    self.GetSpellSubtext = CompatibleGetSpellSubtext
     self.GetSpellCount = CompatibleGetSpellCount
     
     -- Guild System
@@ -547,10 +779,13 @@ function Compatibility:Initialize()
     self.WOW_VERSION = WOW_VERSION
     self.WOW_BUILD = WOW_BUILD
     self.WOW_VERSION_MAJOR = WOW_VERSION_MAJOR
+    self.BUILD_NUMBER = BUILD_NUMBER
     self.IS_RETAIL = IS_RETAIL
     self.IS_CATA_CLASSIC = IS_CATA_CLASSIC
     self.IS_WRATH_CLASSIC = IS_WRATH_CLASSIC
     self.IS_CLASSIC_ERA = IS_CLASSIC_ERA
+    self.HAS_MODERN_AURA_API = HAS_MODERN_AURA_API
+    self.HAS_MODERN_SPELL_API = HAS_MODERN_SPELL_API
     
     -- Utility functions
     self.APIExists = APIExists
@@ -560,6 +795,8 @@ function Compatibility:Initialize()
     
     if DamiaUI.Engine then
         DamiaUI.Engine:LogInfo("Compatibility layer initialized for WoW %s (Build %s)", WOW_VERSION, WOW_BUILD)
+        DamiaUI.Engine:LogDebug("Modern Aura API: %s, Modern Spell API: %s", 
+                                tostring(HAS_MODERN_AURA_API), tostring(HAS_MODERN_SPELL_API))
     end
 end
 
@@ -568,18 +805,36 @@ function Compatibility:GetVersionInfo()
     return {
         version = WOW_VERSION,
         build = WOW_BUILD,
+        buildNumber = BUILD_NUMBER,
         majorVersion = WOW_VERSION_MAJOR,
         tocVersion = TOC_VERSION,
         isRetail = IS_RETAIL,
         isCataClassic = IS_CATA_CLASSIC,
         isWrathClassic = IS_WRATH_CLASSIC,
-        isClassicEra = IS_CLASSIC_ERA
+        isClassicEra = IS_CLASSIC_ERA,
+        hasModernAuraAPI = HAS_MODERN_AURA_API,
+        hasModernSpellAPI = HAS_MODERN_SPELL_API
     }
 end
 
 -- Check if specific API is available
 function Compatibility:IsAPIAvailable(apiName)
     return APIExists(apiName)
+end
+
+-- Check if modern APIs should be preferred
+function Compatibility:ShouldUseModernAPIs()
+    return IS_RETAIL and BUILD_NUMBER >= 110000
+end
+
+-- Check if a specific modern API namespace is available
+function Compatibility:IsModernNamespaceAvailable(namespace)
+    if not namespace then
+        return false
+    end
+    
+    local namespaceTable = _G[namespace]
+    return namespaceTable and type(namespaceTable) == "table"
 end
 
 -- Apply compatibility patches to existing global functions
@@ -648,8 +903,7 @@ if DamiaUI.Engine then
         IS_WRATH_CLASSIC and "Wrath Classic" or 
         IS_CLASSIC_ERA and "Classic Era" or "Unknown")
 else
-    -- Fallback logging if Engine not available
-    print(string.format("[DamiaUI] Compatibility layer loaded for WoW %s", WOW_VERSION))
+    -- Fallback logging removed - silent compatibility layer loading
 end
 
 return Compatibility

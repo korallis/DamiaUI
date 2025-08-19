@@ -67,12 +67,10 @@ Config\Defaults.lua
 
 # Core System (Order Critical)
 Core\Compatibility.lua
-Core\ErrorHandler.lua
+Core\CombatLockdown.lua
 Core\Engine.lua
 Core\Utils.lua
 Core\Events.lua
-Core\Performance.lua
-Core\Memory.lua
 Core\Throttle.lua
 Core\Config.lua
 Core\SafeMode.lua

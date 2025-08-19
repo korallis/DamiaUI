@@ -20,8 +20,29 @@
 local addonName, addon = ...
 local DamiaUI = _G.DamiaUI or {}
 
--- Create Aurora namespace
+-- LibStub integration
+local LibStub = LibStub or _G.LibStub
+if not LibStub then
+    error("DamiaUI_Aurora requires LibStub")
+end
+
+-- Create Aurora namespace and register with LibStub
 local Aurora = {}
+local version = 1
+
+-- Register with LibStub
+if LibStub then
+    local existingLib = LibStub:GetLibrary("Aurora", true)
+    if existingLib and existingLib.version >= version then
+        return existingLib
+    end
+    
+    LibStub:NewLibrary("Aurora", version)
+    Aurora = LibStub("Aurora")
+    Aurora.version = version
+end
+
+-- Ensure DamiaUI.Libraries table exists and register Aurora
 DamiaUI.Libraries = DamiaUI.Libraries or {}
 DamiaUI.Libraries.Aurora = Aurora
 

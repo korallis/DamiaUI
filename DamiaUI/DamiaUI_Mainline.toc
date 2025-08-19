@@ -65,8 +65,6 @@ Core\CompatibilityUtils.lua
 Core\Engine.lua
 Core\Utils.lua
 Core\Events.lua
-Core\Performance.lua
-Core\Memory.lua
 Core\Throttle.lua
 Core\Config.lua
 

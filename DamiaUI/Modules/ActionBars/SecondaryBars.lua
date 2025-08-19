@@ -28,6 +28,9 @@ local UIParent = UIParent
 local InCombatLockdown = InCombatLockdown
 local GetActionInfo = GetActionInfo
 local HasAction = HasAction
+
+-- Compatibility layer for modern API support
+local Compatibility = DamiaUI.Compatibility
 local IsUsableAction = IsUsableAction
 local GetActionCooldown = GetActionCooldown
 local GetActionCount = GetActionCount
@@ -37,6 +40,9 @@ local UIFrameFadeOut = UIFrameFadeOut
 
 -- LibActionButton reference
 local LAB = LibStub and LibStub:GetLibrary("LibActionButton-1.0", true)
+
+-- Combat lockdown protection
+local CombatLockdown = DamiaUI.CombatLockdown
 
 -- Create SecondaryBars module
 local SecondaryBars = {
@@ -290,30 +296,46 @@ function SecondaryBars:SetupButtonStyling(button, config)
         button.damiaBorder = border
     end
     
-    -- Configure state textures
+    -- Configure state textures using compatibility layer
     local normalTexture = button:GetNormalTexture()
     if normalTexture then
-        normalTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(normalTexture, BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        else
+            normalTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            normalTexture:SetVertexColor(BUTTON_STYLE.normalColor.r, BUTTON_STYLE.normalColor.g, BUTTON_STYLE.normalColor.b, BUTTON_STYLE.normalColor.a)
+        end
     end
     
     local pushedTexture = button:GetPushedTexture()
     if pushedTexture then
-        pushedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        pushedTexture:SetVertexColor(BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(pushedTexture, BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
+        else
+            pushedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            pushedTexture:SetVertexColor(BUTTON_STYLE.pushedColor.r, BUTTON_STYLE.pushedColor.g, BUTTON_STYLE.pushedColor.b, BUTTON_STYLE.pushedColor.a)
+        end
     end
     
     local highlightTexture = button:GetHighlightTexture()
     if highlightTexture then
-        highlightTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(highlightTexture, BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        else
+            highlightTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            highlightTexture:SetVertexColor(BUTTON_STYLE.highlightColor.r, BUTTON_STYLE.highlightColor.g, BUTTON_STYLE.highlightColor.b, BUTTON_STYLE.highlightColor.a)
+        end
         highlightTexture:SetBlendMode("ADD")
     end
     
     local checkedTexture = button:GetCheckedTexture()
     if checkedTexture then
-        checkedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
-        checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        if Compatibility and Compatibility.SetSolidTexture then
+            Compatibility.SetSolidTexture(checkedTexture, BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        else
+            checkedTexture:SetTexture("Interface\\Buttons\\WHITE8X8")
+            checkedTexture:SetVertexColor(BUTTON_STYLE.checkedColor.r, BUTTON_STYLE.checkedColor.g, BUTTON_STYLE.checkedColor.b, BUTTON_STYLE.checkedColor.a)
+        end
     end
 end
 
@@ -359,8 +381,12 @@ function SecondaryBars:SetupButtonOverlays(button, config)
     -- Range indicator
     button.rangeIndicator = button:CreateTexture(nil, "OVERLAY")
     button.rangeIndicator:SetAllPoints(button)
-    button.rangeIndicator:SetTexture("Interface\\Buttons\\WHITE8X8")
-    button.rangeIndicator:SetVertexColor(1, 0.1, 0.1, 0)
+    if Compatibility and Compatibility.SetSolidTexture then
+        Compatibility.SetSolidTexture(button.rangeIndicator, 1, 0.1, 0.1, 0)
+    else
+        button.rangeIndicator:SetTexture("Interface\\Buttons\\WHITE8X8")
+        button.rangeIndicator:SetVertexColor(1, 0.1, 0.1, 0)
+    end
     button.rangeIndicator:SetBlendMode("MULTIPLY")
 end
 
@@ -370,19 +396,32 @@ function SecondaryBars:PositionBar(barType, bar, config, barConfig)
     -- Use configured position or default
     local posX = config.position.x or barConfig.defaultPosition.x
     local posY = config.position.y or barConfig.defaultPosition.y
-    
-    -- Position relative to screen center
-    if DamiaUI.Utils then
-        DamiaUI.Utils:PositionFrame(bar, posX, posY, "CENTER")
-    else
-        -- Fallback positioning
-        bar:ClearAllPoints()
-        bar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
-    end
-    
-    -- Apply scale
     local scale = config.scale or 1.0
-    bar:SetScale(scale)
+    
+    -- Position relative to screen center (with combat lockdown protection)
+    if CombatLockdown then
+        if DamiaUI.Utils then
+            CombatLockdown:SafeUpdateActionBars(function()
+                DamiaUI.Utils:PositionFrame(bar, posX, posY, "CENTER")
+            end)
+        else
+            CombatLockdown:SafeSetPoint(bar, "CENTER", UIParent, "CENTER", posX, posY)
+        end
+        CombatLockdown:SafeSetScale(bar, scale)
+    else
+        if not InCombatLockdown() then
+            if DamiaUI.Utils then
+                DamiaUI.Utils:PositionFrame(bar, posX, posY, "CENTER")
+            else
+                -- Fallback positioning
+                bar:ClearAllPoints()
+                bar:SetPoint("CENTER", UIParent, "CENTER", posX, posY)
+            end
+            bar:SetScale(scale)
+        else
+            DamiaUI.Engine:LogWarning("%s bar positioning deferred due to combat lockdown", barType)
+        end
+    end
     
     DamiaUI.Engine:LogDebug("%s bar positioned at (%d, %d) with scale %.2f", barType, posX, posY, scale)
 end
@@ -529,18 +568,36 @@ LAYOUT AND VISIBILITY MANAGEMENT
 --]]
 
 function SecondaryBars:UpdateLayout()
-    if InCombatLockdown() then
-        return false
-    end
-    
-    for barType, bar in pairs(self.bars) do
-        if bar then
-            local config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars." .. barType) or DamiaUI.Defaults.profile.actionbars[barType]
-            local barConfig = BAR_CONFIGS[barType]
-            
-            if config and barConfig then
-                self:PositionBar(barType, bar, config, barConfig)
-                self:UpdateBarButtons(barType, bar, config, barConfig)
+    -- Safe layout update with combat lockdown protection
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            for barType, bar in pairs(self.bars) do
+                if bar then
+                    local config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars." .. barType) or DamiaUI.Defaults.profile.actionbars[barType]
+                    local barConfig = BAR_CONFIGS[barType]
+                    
+                    if config and barConfig then
+                        self:PositionBar(barType, bar, config, barConfig)
+                        self:UpdateBarButtons(barType, bar, config, barConfig)
+                    end
+                end
+            end
+        end)
+    else
+        if InCombatLockdown() then
+            DamiaUI.Engine:LogWarning("Secondary bars layout update deferred due to combat lockdown")
+            return false
+        end
+        
+        for barType, bar in pairs(self.bars) do
+            if bar then
+                local config = DamiaUI.Config and DamiaUI.Config:GetValue("actionbars." .. barType) or DamiaUI.Defaults.profile.actionbars[barType]
+                local barConfig = BAR_CONFIGS[barType]
+                
+                if config and barConfig then
+                    self:PositionBar(barType, bar, config, barConfig)
+                    self:UpdateBarButtons(barType, bar, config, barConfig)
+                end
             end
         end
     end
@@ -674,6 +731,21 @@ function SecondaryBars:Cleanup()
     self.initialized = false
     
     DamiaUI.Engine:LogDebug("Secondary action bars cleaned up")
+end
+
+-- Safe update methods with combat lockdown protection
+function SecondaryBars:SafeUpdateLayout()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateActionBars(function()
+            self:UpdateLayout()
+        end)
+    else
+        if not InCombatLockdown() then
+            self:UpdateLayout()
+        else
+            DamiaUI.Engine:LogWarning("Secondary bars layout update deferred due to combat lockdown")
+        end
+    end
 end
 
 -- Export SecondaryBars module

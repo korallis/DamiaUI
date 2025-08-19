@@ -6,7 +6,8 @@
     the player/target frames in the classic Damia UI symmetrical layout.
 ]]
 
-local addonName, DamiaUI = ...
+local addonName = ...
+local DamiaUI = _G.DamiaUI
 if not DamiaUI then return end
 
 -- Local references for performance
@@ -17,10 +18,74 @@ local UnitPower, UnitPowerMax, UnitPowerType = UnitPower, UnitPowerMax, UnitPowe
 local UnitCanAttack, UnitPlayerControlled = UnitCanAttack, UnitPlayerControlled
 local UnitExists = UnitExists
 local CreateFrame = CreateFrame
+local InCombatLockdown = InCombatLockdown
 
 -- Module dependencies
 local oUF = DamiaUI.Libraries.oUF
 local Aurora = DamiaUI.Libraries.Aurora
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[
+    Safe focus frame positioning with combat lockdown protection
+--]]
+local function SafePositionFocusFrame(self)
+    if not self then return end
+    
+    local x, y = DamiaUI.UnitFrames.GetCenterPosition(FOCUS_CONFIG.position.x, FOCUS_CONFIG.position.y)
+    
+    if CombatLockdown then
+        CombatLockdown:SafeSetPoint(self, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+        CombatLockdown:SafeSetSize(self, FOCUS_CONFIG.size.width, FOCUS_CONFIG.size.height)
+        CombatLockdown:SafeSetScale(self, FOCUS_CONFIG.scale)
+    else
+        if not InCombatLockdown() then
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            self:SetSize(FOCUS_CONFIG.size.width, FOCUS_CONFIG.size.height)
+            self:SetScale(FOCUS_CONFIG.scale)
+        else
+            DamiaUI.Engine:LogWarning("Focus frame positioning deferred due to combat lockdown")
+        end
+    end
+end
+
+--[[
+    Safe focus element updates with combat lockdown protection
+--]]
+local function SafeUpdateFocusElements(self)
+    if not self then return end
+    
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            -- Update focus-specific elements
+            if self.Castbar and UnitExists("focus") then
+                UpdateFocusCastbar(self.Castbar, "focus")
+            end
+            if self.Level and UnitExists("focus") then
+                local level = UnitLevel("focus")
+                if level > 0 then
+                    self.Level:SetText(level)
+                else
+                    self.Level:SetText("??")
+                end
+            end
+        end)
+    else
+        if not InCombatLockdown() then
+            if self.Castbar and UnitExists("focus") then
+                UpdateFocusCastbar(self.Castbar, "focus")
+            end
+            if self.Level and UnitExists("focus") then
+                local level = UnitLevel("focus")
+                if level > 0 then
+                    self.Level:SetText(level)
+                else
+                    self.Level:SetText("??")
+                end
+            end
+        end
+    end
+end
 
 -- Focus frame specific configuration
 local FOCUS_CONFIG = {
@@ -210,10 +275,8 @@ local function CreateFocusLayout(self, unit)
     self:SetSize(FOCUS_CONFIG.size.width * scale, FOCUS_CONFIG.size.height * scale)
     self:SetScale(scale)
     
-    -- Position frame using centered coordinate system
-    local x, y = DamiaUI.UnitFrames.GetCenterPosition(FOCUS_CONFIG.position.x, FOCUS_CONFIG.position.y)
-    self:ClearAllPoints()
-    self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    -- Position frame using centered coordinate system (with combat lockdown protection)
+    SafePositionFocusFrame(self)
     
     -- Create compact health bar (no power bar for focus)
     local health = CreateFrame("StatusBar", nil, self)
@@ -282,12 +345,36 @@ end
 local function SetFocusConfig(key, value)
     if FOCUS_CONFIG[key] ~= nil then
         FOCUS_CONFIG[key] = value
-        -- Trigger frame update if needed
+        -- Trigger frame update if needed (with combat lockdown protection)
         local focusFrame = DamiaUI.UnitFrames:GetFrame("focus")
         if focusFrame then
-            DamiaUI.UnitFrames:RefreshFrame("focus")
+            if CombatLockdown then
+                CombatLockdown:SafeUpdateUnitFrames(function()
+                    DamiaUI.UnitFrames:RefreshFrame("focus")
+                end)
+            else
+                if not InCombatLockdown() then
+                    DamiaUI.UnitFrames:RefreshFrame("focus")
+                else
+                    DamiaUI.Engine:LogWarning("Focus frame refresh deferred due to combat lockdown")
+                end
+            end
         end
     end
+end
+
+-- Export focus-specific functions (only if UnitFrames module exists)
+if DamiaUI.UnitFrames and type(DamiaUI.UnitFrames) == "table" then
+    DamiaUI.UnitFrames.Focus = {
+        CreateLayout = CreateFocusLayout,
+        UpdateHealth = UpdateFocusHealth,
+        UpdateCastbar = UpdateFocusCastbar,
+        UpdateVisibility = UpdateFocusVisibility,
+        GetConfig = GetFocusConfig,
+        SetConfig = SetFocusConfig,
+        SafePosition = SafePositionFocusFrame,
+        SafeUpdateElements = SafeUpdateFocusElements
+    }
 end
 
 --[[

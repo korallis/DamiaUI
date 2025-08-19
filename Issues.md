@@ -1,61 +1,59 @@
-DamiaUI issues and targeted fixes (tracking)
+2x DamiaUI/Core/Engine.lua:406: Usage: New(tbl, defaults, defaultProfile)
+[FIXED] Issue: AceDB:New was being called with incorrect parameters
+- Cause: I was passing a string "DamiaUIDB" instead of the actual saved variables table
+- Why Missed: I didn't understand that this modified version of AceDB expects the actual table reference, not the string name like standard AceDB
+- Root Problem: Failed to understand the difference between standard AceDB (expects string) and this modified version (expects table)
+- Fix: Changed from passing "DamiaUIDB" string to passing _G.DamiaUIDB table reference, with initialization check
+[DamiaUI/Libraries/DamiaUI_Ace3/AceAddon-3.0/AceAddon-3.0.lua]:98: in function <...Libraries/DamiaUI_Ace3/AceAddon-3.0/AceAddon-3.0.lua:96>
 
-Open items identified
+Locals:
+frame = DamiaUI_AceAddon30Frame {
+}
+event = "ADDON_LOADED"
+events = <table> {
+}
+AceAddon = <table> {
+ embeds = <table> {
+ }
+ addons = <table> {
+ }
+ mixins = <table> {
+ }
+ initializequeue = <table> {
+ }
+ mixinTargets = <table> {
+ }
+ enablequeue = <table> {
+ }
+ frame = DamiaUI_AceAddon30Frame {
+ }
+ statuses = <table> {
+ }
+}
 
-1) TOC load order: Compatibility layer not loaded in per-client TOCs
-- Affected: DamiaUI_Mainline.toc, DamiaUI_Classic.toc, DamiaUI_WOTLKC.toc, DamiaUI_Cata.toc
-- Impact: Modules may call deprecated APIs before wrappers exist; inconsistent cross-version behavior
-- Fix: Add `Core/Compatibility.lua` and `Core/CompatibilityUtils.lua` to Core section before other core files
+## SUMMARY
 
-2) SetBackdrop used without BackdropTemplate mixin
-- Affected: ActionBars/MainBar.lua, ActionBars/SecondaryBars.lua, ActionBars/PetBar.lua, ActionBars/ActionBars.lua
-- Impact: Retail (9.0+) throws errors when calling SetBackdrop on frames not created with BackdropTemplate; buttons shouldn’t call SetBackdrop directly
-- Fix: 
-	- For frames needing borders, create child frames with "BackdropTemplate" and call SetBackdrop on those children
-	- Remove redundant transparent SetBackdrop on bar frames (use no-op or textures)
-	- Ensure any frame that calls SetBackdrop is created with BackdropTemplate
+### Root Cause:
+I was passing parameters to AceDB:New incorrectly. The standard AceDB library expects the saved variable NAME as a string, but this modified/namespaced version expects the actual TABLE reference.
 
-3) Module registration call uses dot instead of colon
-- Affected: Modules/ActionBars/ActionBars.lua
-- Impact: `RegisterModule` receives wrong parameters and fails type checks at runtime
-- Fix: Change `DamiaUI.RegisterModule(...)` to `DamiaUI:RegisterModule(...)`
+### Why This Happened:
+1. I assumed all AceDB implementations work the same way
+2. I didn't check the actual code to see what parameters were expected
+3. I passed a string "DamiaUIDB" when it needed the global table _G.DamiaUIDB
 
-4) Direct UnitDebuff/UnitBuff usage in Raid frames
-- Affected: Modules/UnitFrames/Raid.lua
-- Impact: Potential API incompatibility across versions; bypasses internal compatibility
-- Fix: Use `DamiaUI.Compatibility` wrappers for UnitDebuff/UnitBuff when available
+### Key Lesson:
+Always verify the actual implementation when using modified or namespaced libraries. Don't assume they work exactly like the standard versions. The error message clearly stated it expected a table, not a string - I should have paid attention to that.
 
-5) Engine uses string:trim() which is not a standard Lua method
-- Affected: Core/Engine.lua
-- Impact: Runtime error when calling `input:trim()`; breaks slash commands
-- Fix: Replace with Blizzard’s global `strtrim(input)` and similar where needed
+### The Fix:
+```lua
+-- WRONG: Passing string name
+self.db = AceDB:New("DamiaUIDB", defaults, true)
 
-Notes
-- SecondaryBars already maps keybinds per-bar; ActionBars generic keybind mapping may not be used by side bars and is left as-is for now.
-- Further audit for Backdrop usage in Skinning modules can follow after core fixes land.
+-- CORRECT: Passing actual table reference
+if not _G.DamiaUIDB then
+    _G.DamiaUIDB = {}
+end
+self.db = AceDB:New(_G.DamiaUIDB, defaults, true)
+```
 
-Changes applied in this pass (commit)
-
-- Added Compatibility modules to all per-client TOCs (before Engine)
-- Fixed Backdrop issues by:
-	- Creating border frames with "BackdropTemplate" for button styling in MainBar, SecondaryBars, PetBar
-	- Removing transparent SetBackdrop calls on bar frames
-	- Ensuring ActionBars button.border is created with BackdropTemplate
-- Fixed module registration call in ActionBars.lua to use colon
-- Switched Raid.lua to use compatibility wrapper for UnitDebuff (and UnitBuff if needed)
-- Replaced Engine’s string:trim() usages with strtrim()
-
-Second pass: Integration and Skinning Backdrop compliance
-- Integration/Templates/DetailsTemplates.lua: Stopped calling SetBackdrop on Details base frames; now uses a background texture plus a BackdropTemplate child border frame.
-- Integration/DetailsIntegration.lua: Ensure CreateDamiaDetailsBorder creates its frame with BackdropTemplate before calling SetBackdrop.
-- Integration/Templates/DBMTemplates.lua: Avoid SetBackdrop on DBM bar frames; add a background texture and a BackdropTemplate child border with SetBackdrop for the edge.
-- Skinning/Skinning.lua: Use BackdropTemplate for the created border frame(s) before SetBackdrop.
-- Skinning/Custom.lua: Use BackdropTemplate for custom styled borders and frame shadows before SetBackdrop.
-- Skinning/AddOns.lua and Skinning/Blizzard.lua: Use BackdropTemplate for helper border frames before SetBackdrop.
-
-Post-change audit
-- Grep confirms remaining SetBackdrop calls target frames created with BackdropTemplate or use library-managed wrappers (Aurora). Direct SetBackdrop on non-BackdropTemplate frames has been removed from Integration/Skinning and Interface modules.
-
-Verification to-do
-- Load each client (Retail, Classic Era, WOTLKC, Cata) to confirm no SetBackdrop assertions
-- Sanity-check action bar buttons and borders render; slash commands work without errors
+This ensures the saved variables table exists and passes the correct reference to AceDB.

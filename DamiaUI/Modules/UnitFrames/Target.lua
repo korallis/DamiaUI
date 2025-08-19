@@ -6,7 +6,8 @@
     creating perfect symmetry with the player frame in the Damia UI layout.
 ]]
 
-local addonName, DamiaUI = ...
+local addonName = ...
+local DamiaUI = _G.DamiaUI
 if not DamiaUI then return end
 
 -- Local references for performance
@@ -19,10 +20,64 @@ local UnitCreatureType, UnitCreatureFamily = UnitCreatureType, UnitCreatureFamil
 local UnitThreatSituation = UnitThreatSituation
 local CreateFrame = CreateFrame
 local GetTime = GetTime
+local InCombatLockdown = InCombatLockdown
 
 -- Module dependencies
 local oUF = DamiaUI.Libraries.oUF
 local Aurora = DamiaUI.Libraries.Aurora
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[    
+    Safe target frame positioning with combat lockdown protection
+--]]
+local function SafePositionTargetFrame(self)
+    if not self then return end
+    
+    local x, y = DamiaUI.UnitFrames.GetCenterPosition(TARGET_CONFIG.position.x, TARGET_CONFIG.position.y)
+    
+    if CombatLockdown then
+        CombatLockdown:SafeSetPoint(self, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+        CombatLockdown:SafeSetSize(self, TARGET_CONFIG.size.width, TARGET_CONFIG.size.height)
+        CombatLockdown:SafeSetScale(self, TARGET_CONFIG.scale)
+    else
+        if not InCombatLockdown() then
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            self:SetSize(TARGET_CONFIG.size.width, TARGET_CONFIG.size.height)
+            self:SetScale(TARGET_CONFIG.scale)
+        else
+            DamiaUI.Engine:LogWarning("Target frame positioning deferred due to combat lockdown")
+        end
+    end
+end
+
+--[[
+    Safe target element updates with combat lockdown protection
+--]]
+local function SafeUpdateTargetElements(self)
+    if not self then return end
+    
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            -- Update target-specific elements
+            if self.Castbar then
+                UpdateCastbar(self.Castbar, "target")
+            end
+            UpdateClassification(self, "target")
+            local status = UnitThreatSituation("player", "target")
+            UpdateThreat(self, "target", status)
+        end)
+    else
+        if not InCombatLockdown() then
+            if self.Castbar then
+                UpdateCastbar(self.Castbar, "target")
+            end
+            UpdateClassification(self, "target")
+            local status = UnitThreatSituation("player", "target")
+            UpdateThreat(self, "target", status)
+        end
+    end
+end
 
 -- Target frame specific configuration
 local TARGET_CONFIG = {
@@ -374,12 +429,8 @@ local function CreateTargetLayout(self, unit)
     -- Override threat update
     self.UpdateThreatStatus = UpdateThreat
     
-    -- Position the frame at target-specific coordinates
-    local x, y = DamiaUI.UnitFrames.GetCenterPosition(TARGET_CONFIG.position.x, TARGET_CONFIG.position.y)
-    self:ClearAllPoints()
-    self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-    self:SetSize(TARGET_CONFIG.size.width, TARGET_CONFIG.size.height)
-    self:SetScale(TARGET_CONFIG.scale)
+    -- Position the frame at target-specific coordinates (with combat lockdown protection)
+    SafePositionTargetFrame(self)
     
     -- Register events for target-specific updates
     self:RegisterEvent("UNIT_CLASSIFICATION_CHANGED", UpdateClassification)
@@ -403,21 +454,35 @@ end
 local function SetTargetConfig(key, value)
     if TARGET_CONFIG[key] ~= nil then
         TARGET_CONFIG[key] = value
-        -- Trigger frame update if needed
+        -- Trigger frame update if needed (with combat lockdown protection)
         local targetFrame = DamiaUI.UnitFrames:GetFrame("target")
         if targetFrame then
-            DamiaUI.UnitFrames:RefreshFrame("target")
+            if CombatLockdown then
+                CombatLockdown:SafeUpdateUnitFrames(function()
+                    DamiaUI.UnitFrames:RefreshFrame("target")
+                end)
+            else
+                if not InCombatLockdown() then
+                    DamiaUI.UnitFrames:RefreshFrame("target")
+                else
+                    DamiaUI.Engine:LogWarning("Target frame refresh deferred due to combat lockdown")
+                end
+            end
         end
     end
 end
 
--- Export target-specific functions
-DamiaUI.UnitFrames.Target = {
-    CreateLayout = CreateTargetLayout,
-    UpdateHealth = UpdateTargetHealth,
-    UpdateCastbar = UpdateCastbar,
-    UpdateThreat = UpdateThreat,
-    UpdateClassification = UpdateClassification,
-    GetConfig = GetTargetConfig,
-    SetConfig = SetTargetConfig
-}
+-- Export target-specific functions (only if UnitFrames module exists)
+if DamiaUI.UnitFrames and type(DamiaUI.UnitFrames) == "table" then
+    DamiaUI.UnitFrames.Target = {
+        CreateLayout = CreateTargetLayout,
+        UpdateHealth = UpdateTargetHealth,
+        UpdateCastbar = UpdateCastbar,
+        UpdateThreat = UpdateThreat,
+        UpdateClassification = UpdateClassification,
+        GetConfig = GetTargetConfig,
+        SetConfig = SetTargetConfig,
+        SafePosition = SafePositionTargetFrame,
+        SafeUpdateElements = SafeUpdateTargetElements
+    }
+end

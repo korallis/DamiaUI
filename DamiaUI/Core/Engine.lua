@@ -20,9 +20,9 @@ local GetTime, InCombatLockdown = GetTime, InCombatLockdown
 -- Verify LibStub exists
 assert(LibStub, "DamiaUI requires LibStub to be loaded")
 
--- Verify AceAddon exists
-local AceAddon = LibStub("AceAddon-3.0", true)
-assert(AceAddon, "DamiaUI requires AceAddon-3.0")
+-- Verify AceAddon exists (using DamiaUI namespace)
+local AceAddon = LibStub("DamiaUI_AceAddon-3.0", true)
+assert(AceAddon, "DamiaUI requires DamiaUI_AceAddon-3.0")
 
 -- Create the main addon object
 ---@class DamiaUI : AceAddon
@@ -30,7 +30,7 @@ assert(AceAddon, "DamiaUI requires AceAddon-3.0")
 ---@field Libraries table<string, any>
 ---@field callbacks table<string, table>
 ---@field ErrorHandler table
-local DamiaUI = AceAddon:NewAddon(addon, addonName, "AceConsole-3.0")
+local DamiaUI = AceAddon:NewAddon(addonName, "AceConsole-3.0")
 
 -- Properly register global
 ---@diagnostic disable-next-line: inject-field
@@ -45,6 +45,7 @@ local DEBUG_MODE = false
 DamiaUI.modules = {}
 DamiaUI.Libraries = {}
 DamiaUI.callbacks = {}
+DamiaUI.addon = addon  -- Store the addon table passed from WoW
 
 -- Simple error handler
 DamiaUI.ErrorHandler = {
@@ -222,6 +223,28 @@ end
 
 InitializeErrorHandler()
 
+-- Initialize libraries early so modules can access them at load time
+-- This needs to happen before any modules load
+local function InitializeLibrariesEarly()
+    -- Cache library references with namespace isolation
+    DamiaUI.Libraries.oUF = LibStub("oUF", true)
+    DamiaUI.Libraries.Aurora = LibStub("Aurora", true)
+    DamiaUI.Libraries.ActionButton = LibStub("LibActionButton-1.0", true)
+    DamiaUI.Libraries.DataBroker = LibStub("LibDataBroker-1.1", true)
+    
+    -- Add Ace3 libraries with DamiaUI namespace
+    DamiaUI.Libraries.AceAddon = LibStub("DamiaUI_AceAddon-3.0", true)
+    DamiaUI.Libraries.AceConfig = LibStub("DamiaUI_AceConfig-3.0", true)
+    DamiaUI.Libraries.AceConfigDialog = LibStub("DamiaUI_AceConfigDialog-3.0", true)
+    DamiaUI.Libraries.AceConsole = LibStub("DamiaUI_AceConsole-3.0", true)
+    DamiaUI.Libraries.AceDB = LibStub("DamiaUI_AceDB-3.0", true)
+    DamiaUI.Libraries.AceDBOptions = LibStub("DamiaUI_AceDBOptions-3.0", true)
+    DamiaUI.Libraries.AceEvent = LibStub("DamiaUI_AceEvent-3.0", true)
+    DamiaUI.Libraries.AceGUI = LibStub("DamiaUI_AceGUI-3.0", true)
+end
+
+InitializeLibrariesEarly()
+
 --[[
     Core API Functions
 ]]
@@ -244,44 +267,39 @@ function DamiaUI:RegisterModule(name, module)
     end, "Engine", { module = name, operation = "register_module" })
 end
 
--- Create and register a new module
+-- Create and register a new module using AceAddon's built-in system
 function DamiaUI:NewModule(name, ...)
-    local varargs = {...}
-    local numArgs = select("#", ...)
+    -- Don't wrap in SafeCall - AceAddon's NewModule handles errors properly
+    if type(name) ~= "string" then
+        error("Module name must be a string")
+    end
     
-    return self.ErrorHandler:SafeCall(function()
-        if type(name) ~= "string" then
-            error("Module name must be a string")
-        end
-
-        if self.modules[name] then
-            self:LogWarning("Module '" .. name .. "' already exists")
-            return self.modules[name]
-        end
-
-        -- Create new module object
+    -- Check if module already exists in our tracking
+    if self.modules[name] then
+        return self.modules[name]
+    end
+    
+    -- Use AceAddon's built-in NewModule which properly creates module objects
+    local AceAddon = LibStub("DamiaUI_AceAddon-3.0")
+    if not AceAddon or not AceAddon.NewModule then
+        -- Fallback if AceAddon isn't available - create basic module
         local module = {
             name = name,
             DamiaUI = self,
-            -- Add any additional module methods here
         }
-
-        -- Allow for additional module mixins passed as varargs
-        for i = 1, numArgs do
-            local mixin = varargs[i]
-            if type(mixin) == "table" then
-                for k, v in pairs(mixin) do
-                    if not module[k] then
-                        module[k] = v
-                    end
-                end
-            end
-        end
-
         self.modules[name] = module
-        self:LogDebug("Created new module: " .. name)
         return module
-    end, "Engine", { module = name, operation = "new_module" })
+    end
+    
+    -- Call the parent's NewModule from AceAddon
+    local module = AceAddon.NewModule(self, name, ...)
+    
+    -- Track the module in our own table for quick access
+    if module then
+        self.modules[name] = module
+    end
+    
+    return module
 end
 
 -- Module retrieval
@@ -355,35 +373,20 @@ end
 ]]
 
 function DamiaUI:LogDebug(message)
-    if self.ErrorHandler then
-        self.ErrorHandler:LogDebug(tostring(message))
-    elseif DEBUG_MODE then
-        -- Debug logging removed
-    end
+    -- Debug logging removed - no-op to prevent errors
 end
 
 function DamiaUI:LogInfo(message)
-    if self.ErrorHandler then
-        self.ErrorHandler:LogInfo(tostring(message))
-    else
-        -- Info logging removed
-    end
+    -- Info logging removed - no-op to prevent errors
 end
 
 function DamiaUI:LogWarning(message)
-    if self.ErrorHandler then
-        self.ErrorHandler:LogWarning(tostring(message))
-    else
-        -- Warning logging removed
-    end
+    -- Warning logging removed - no-op to prevent errors
 end
 
 function DamiaUI:LogError(message)
-    if self.ErrorHandler then
-        self.ErrorHandler:LogError(tostring(message))
-    else
-        -- Error logging removed
-    end
+    -- Error logging removed - just silently continue
+    -- This prevents errors when modules try to log errors during initialization
 end
 
 --[[
@@ -395,9 +398,21 @@ function DamiaUI:OnInitialize()
     self:LogInfo("Game Version: " .. self.gameVersion.gameType .. " (" .. self.gameVersion.tocVersion .. ")")
     self:LogInfo("Build: " .. self.gameVersion.versionString .. " (" .. self.gameVersion.buildNumber .. ")")
 
-    -- Initialize database (use DamiaUI.Defaults which is loaded from Config/Defaults.lua)
+    -- Initialize embedded libraries early (before modules load)
+    self:InitializeLibraries()
+
+    -- Initialize database with saved variables
+    -- DamiaUIDB is declared in the TOC file and created by WoW
     ---@diagnostic disable-next-line: undefined-field
-    self.db = LibStub("AceDB-3.0"):New("DamiaUIDB", DamiaUI.Defaults or {}, true)
+    local AceDB = LibStub("DamiaUI_AceDB-3.0")
+    if AceDB then
+        -- Initialize the global saved variable if it doesn't exist
+        if not _G.DamiaUIDB then
+            _G.DamiaUIDB = {}
+        end
+        -- This version of AceDB expects the actual table, not the string name
+        self.db = AceDB:New(_G.DamiaUIDB, DamiaUI.Defaults or {}, true)
+    end
 
     -- Register for essential events
     self:RegisterEvent("PLAYER_LOGIN")
@@ -412,9 +427,6 @@ end
 function DamiaUI:OnEnable()
     self:LogDebug("Enabling DamiaUI")
 
-    -- Initialize embedded libraries
-    self:InitializeLibraries()
-
     -- Enable all registered modules
     self:EnableModules()
 
@@ -422,21 +434,8 @@ function DamiaUI:OnEnable()
 end
 
 function DamiaUI:InitializeLibraries()
-    self:LogDebug("Initializing embedded libraries")
-
-    -- Cache library references with namespace isolation
-    self.Libraries.oUF = LibStub("oUF", true)
-    self.Libraries.Aurora = LibStub("Aurora", true)
-    self.Libraries.ActionButton = LibStub("LibActionButton-1.0", true)
-    self.Libraries.DataBroker = LibStub("LibDataBroker-1.1", true)
-    
-    -- Add Ace3 libraries with DamiaUI namespace
-    self.Libraries.AceConfig = LibStub("DamiaUI_AceConfig-3.0", true)
-    self.Libraries.AceConfigDialog = LibStub("DamiaUI_AceConfigDialog-3.0", true)
-    self.Libraries.AceDBOptions = LibStub("DamiaUI_AceDBOptions-3.0", true)
-    self.Libraries.AceGUI = LibStub("DamiaUI_AceGUI-3.0", true)
-
-    -- Verify critical libraries loaded
+    -- Libraries already initialized at load time
+    -- Just verify critical libraries loaded
     if not self.Libraries.oUF then
         self:LogError("oUF library failed to load - UnitFrames will be disabled")
     end

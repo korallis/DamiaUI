@@ -36,6 +36,31 @@ local C_Timer = C_Timer
 local Throttle = {}
 DamiaUI.Throttle = Throttle
 
+-- Safe logging functions that check if Engine exists
+local function LogDebug(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogDebug then
+        LogDebug(...)
+    end
+end
+
+local function LogInfo(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogInfo then
+        LogInfo(...)
+    end
+end
+
+local function LogWarning(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogWarning then
+        LogWarning(...)
+    end
+end
+
+local function LogError(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogError then
+        LogError(...)
+    end
+end
+
 -- Throttling constants and settings
 local DEFAULT_THROTTLE_INTERVAL = 0.033 -- ~30 FPS default
 local MIN_THROTTLE_INTERVAL = 0.016 -- ~60 FPS maximum
@@ -94,7 +119,7 @@ CORE THROTTLING SYSTEM
 
 -- Initialize throttling system
 function Throttle:Initialize()
-    DamiaUI.Engine:LogInfo("Initializing Event Throttling System")
+    LogInfo("Initializing Event Throttling System")
     
     -- Set up main throttling loop
     self:StartThrottlingLoop()
@@ -112,7 +137,7 @@ function Throttle:Initialize()
     DamiaUI.Events:RegisterCustomEvent("DAMIA_OPTIMIZATION_CHANGED", 
         function(event, level) self:OnOptimizationChanged(level) end, 2, "Throttle_Optimization")
     
-    DamiaUI.Engine:LogInfo("Event throttling system initialized")
+    LogInfo("Event throttling system initialized")
 end
 
 -- Start main throttling loop
@@ -146,12 +171,12 @@ EVENT THROTTLING
 -- Register event for throttling
 function Throttle:RegisterEvent(eventName, callback, interval, priority, identifier)
     if not eventName or not callback then
-        DamiaUI.Engine:LogError("RegisterEvent: Invalid event name or callback")
+        LogError("RegisterEvent: Invalid event name or callback")
         return false
     end
     
     if type(callback) ~= "function" then
-        DamiaUI.Engine:LogError("RegisterEvent: Callback must be a function")
+        LogError("RegisterEvent: Callback must be a function")
         return false
     end
     
@@ -179,7 +204,7 @@ function Throttle:RegisterEvent(eventName, callback, interval, priority, identif
     
     table.insert(throttledEvents[eventName], throttleData)
     
-    DamiaUI.Engine:LogDebug("Registered throttled event: %s for %s (interval: %.3fs, priority: %d)", 
+    LogDebug("Registered throttled event: %s for %s (interval: %.3fs, priority: %d)", 
                            identifier, eventName, adjustedInterval, priority)
     return true
 end
@@ -255,7 +280,7 @@ function Throttle:ExecuteThrottledCallback(throttleData, eventName, ...)
     throttleData.totalTime = throttleData.totalTime + executionTime
     
     if not success then
-        DamiaUI.Engine:LogError("Throttled event callback error [%s]: %s", 
+        LogError("Throttled event callback error [%s]: %s", 
                                throttleData.identifier, result)
     end
 end
@@ -284,7 +309,7 @@ function Throttle:RegisterBatchEvent(eventName, batchCallback, batchWindow, maxB
         timer = nil,
     }
     
-    DamiaUI.Engine:LogDebug("Registered batch event: %s (window: %.3fs, size: %d)", 
+    LogDebug("Registered batch event: %s (window: %.3fs, size: %d)", 
                            eventName, batchWindow, maxBatchSize)
     return true
 end
@@ -342,10 +367,10 @@ function Throttle:ProcessBatch(eventName)
     
     if success then
         throttlingStats.eventsBatched = throttlingStats.eventsBatched + #events
-        DamiaUI.Engine:LogDebug("Processed batch: %s (%d events in %.2fms)", 
+        LogDebug("Processed batch: %s (%d events in %.2fms)", 
                                eventName, #events, (GetTime() - startTime) * 1000)
     else
-        DamiaUI.Engine:LogError("Batch callback error [%s]: %s", eventName, result)
+        LogError("Batch callback error [%s]: %s", eventName, result)
     end
 end
 
@@ -380,7 +405,7 @@ function Throttle:RegisterUpdateCallback(identifier, callback, frequency, priori
         totalTime = 0,
     }
     
-    DamiaUI.Engine:LogDebug("Registered update callback: %s (frequency: %dFPS, priority: %d)", 
+    LogDebug("Registered update callback: %s (frequency: %dFPS, priority: %d)", 
                            identifier, frequency, priority)
     return true
 end
@@ -389,7 +414,7 @@ end
 function Throttle:UnregisterUpdateCallback(identifier)
     if updateCallbacks[identifier] then
         updateCallbacks[identifier] = nil
-        DamiaUI.Engine:LogDebug("Unregistered update callback: %s", identifier)
+        LogDebug("Unregistered update callback: %s", identifier)
         return true
     end
     return false
@@ -416,7 +441,7 @@ function Throttle:ProcessUpdateCallbacks(elapsed)
                 updateData.totalTime = updateData.totalTime + executionTime
                 
                 if not success then
-                    DamiaUI.Engine:LogError("Update callback error [%s]: %s", identifier, result)
+                    LogError("Update callback error [%s]: %s", identifier, result)
                 end
             end
         end
@@ -431,7 +456,7 @@ function Throttle:AdjustUpdateFrequencies(multiplier)
         updateData.interval = self:CalculateAdjustedInterval(updateData.baseInterval, updateData.priority, multiplier)
     end
     
-    DamiaUI.Engine:LogDebug("Update frequencies adjusted by multiplier: %.2f", multiplier)
+    LogDebug("Update frequencies adjusted by multiplier: %.2f", multiplier)
 end
 
 --[[
@@ -459,7 +484,7 @@ function Throttle:RegisterDebouncedCallback(identifier, callback, delay, priorit
         enabled = true,
     }
     
-    DamiaUI.Engine:LogDebug("Registered debounced callback: %s (delay: %.3fs)", identifier, delay)
+    LogDebug("Registered debounced callback: %s (delay: %.3fs)", identifier, delay)
     return true
 end
 
@@ -483,7 +508,7 @@ function Throttle:TriggerDebounced(identifier, ...)
         if debounceData.pendingArgs then
             local success, result = pcall(debounceData.callback, unpack(debounceData.pendingArgs))
             if not success then
-                DamiaUI.Engine:LogError("Debounced callback error [%s]: %s", identifier, result)
+                LogError("Debounced callback error [%s]: %s", identifier, result)
             end
             debounceData.pendingArgs = nil
             debounceData.timer = nil
@@ -512,7 +537,7 @@ function Throttle:ProcessDebouncedCallbacks()
                 
                 local success, result = pcall(debounceData.callback, unpack(debounceData.pendingArgs))
                 if not success then
-                    DamiaUI.Engine:LogError("Debounced callback error [%s]: %s", identifier, result)
+                    LogError("Debounced callback error [%s]: %s", identifier, result)
                 end
                 
                 debounceData.pendingArgs = nil
@@ -590,7 +615,7 @@ function Throttle:UpdateDynamicThrottling()
         -- Update all throttled events
         self:UpdateAllThrottling()
         
-        DamiaUI.Engine:LogInfo("Dynamic throttling updated: %.1f -> %.1f (%s performance)", 
+        LogInfo("Dynamic throttling updated: %.1f -> %.1f (%s performance)", 
                               oldMultiplier, newMultiplier, newPerformanceLevel)
     end
 end
@@ -629,12 +654,12 @@ function Throttle:OnCombatStateChanged(inCombat)
         local oldMultiplier = throttlingState.combatMultiplier
         throttlingState.combatMultiplier = math.min(2.0, throttlingState.combatMultiplier * 1.2)
         
-        DamiaUI.Engine:LogDebug("Combat throttling enabled: multiplier %.1f -> %.1f", 
+        LogDebug("Combat throttling enabled: multiplier %.1f -> %.1f", 
                                oldMultiplier, throttlingState.combatMultiplier)
     else
         -- Reset combat multiplier
         throttlingState.combatMultiplier = 1.5
-        DamiaUI.Engine:LogDebug("Combat throttling disabled")
+        LogDebug("Combat throttling disabled")
     end
     
     self:UpdateAllThrottling()
@@ -657,7 +682,7 @@ function Throttle:OnOptimizationChanged(level)
         
         self:UpdateAllThrottling()
         
-        DamiaUI.Engine:LogInfo("Throttling optimization level %d: multiplier %.1f -> %.1f", 
+        LogInfo("Throttling optimization level %d: multiplier %.1f -> %.1f", 
                               level, oldMultiplier, newMultiplier)
     end
 end
@@ -671,13 +696,13 @@ CONTROL FUNCTIONS
 -- Enable/disable throttling system
 function Throttle:SetEnabled(enabled)
     throttlingState.enabled = enabled
-    DamiaUI.Engine:LogInfo("Throttling system %s", enabled and "enabled" or "disabled")
+    LogInfo("Throttling system %s", enabled and "enabled" or "disabled")
 end
 
 -- Enable/disable adaptive throttling
 function Throttle:SetAdaptiveMode(enabled)
     throttlingState.adaptiveMode = enabled
-    DamiaUI.Engine:LogInfo("Adaptive throttling %s", enabled and "enabled" or "disabled")
+    LogInfo("Adaptive throttling %s", enabled and "enabled" or "disabled")
 end
 
 -- Set global throttling multiplier
@@ -689,7 +714,7 @@ function Throttle:SetGlobalMultiplier(multiplier)
     
     self:UpdateAllThrottling()
     
-    DamiaUI.Engine:LogInfo("Global throttling multiplier: %.1f -> %.1f", oldMultiplier, multiplier)
+    LogInfo("Global throttling multiplier: %.1f -> %.1f", oldMultiplier, multiplier)
 end
 
 -- Enable/disable specific throttled event
@@ -701,7 +726,7 @@ function Throttle:SetEventEnabled(eventName, identifier, enabled)
     for _, throttleData in ipairs(throttledEvents[eventName]) do
         if throttleData.identifier == identifier then
             throttleData.enabled = enabled
-            DamiaUI.Engine:LogDebug("Throttled event %s:%s %s", eventName, identifier, enabled and "enabled" or "disabled")
+            LogDebug("Throttled event %s:%s %s", eventName, identifier, enabled and "enabled" or "disabled")
             return true
         end
     end
@@ -713,7 +738,7 @@ end
 function Throttle:SetUpdateCallbackEnabled(identifier, enabled)
     if updateCallbacks[identifier] then
         updateCallbacks[identifier].enabled = enabled
-        DamiaUI.Engine:LogDebug("Update callback %s %s", identifier, enabled and "enabled" or "disabled")
+        LogDebug("Update callback %s %s", identifier, enabled and "enabled" or "disabled")
         return true
     end
     return false
@@ -765,18 +790,18 @@ end
 function Throttle:PrintReport()
     local stats = self:GetStatistics()
     
-    DamiaUI.Engine:LogInfo("Throttling System Report:")
-    DamiaUI.Engine:LogInfo("  Status: %s (adaptive: %s)", 
+    LogInfo("Throttling System Report:")
+    LogInfo("  Status: %s (adaptive: %s)", 
                           stats.enabled and "Enabled" or "Disabled",
                           throttlingState.adaptiveMode and "On" or "Off")
-    DamiaUI.Engine:LogInfo("  Performance: %s (%.1f FPS)", stats.performanceLevel, stats.currentFPS)
-    DamiaUI.Engine:LogInfo("  Multipliers: Global %.1f, Combat %.1f", 
+    LogInfo("  Performance: %s (%.1f FPS)", stats.performanceLevel, stats.currentFPS)
+    LogInfo("  Multipliers: Global %.1f, Combat %.1f", 
                           stats.globalMultiplier, stats.combatMultiplier)
-    DamiaUI.Engine:LogInfo("  Registered: %d throttled events, %d update callbacks", 
+    LogInfo("  Registered: %d throttled events, %d update callbacks", 
                           stats.totalThrottledEvents, stats.totalUpdateCallbacks)
-    DamiaUI.Engine:LogInfo("  Processed: %d throttled, %d batched events", 
+    LogInfo("  Processed: %d throttled, %d batched events", 
                           stats.eventsThrottled, stats.eventsBatched)
-    DamiaUI.Engine:LogInfo("  Average execution time: %.2fms", stats.averageExecutionTime * 1000)
+    LogInfo("  Average execution time: %.2fms", stats.averageExecutionTime * 1000)
 end
 
 -- Reset statistics
@@ -799,7 +824,7 @@ function Throttle:ResetStatistics()
         updateData.totalTime = 0
     end
     
-    DamiaUI.Engine:LogInfo("Throttling statistics reset")
+    LogInfo("Throttling statistics reset")
 end
 
 --[[
@@ -826,7 +851,7 @@ DamiaUI.Events:RegisterCustomEvent("DAMIA_ADDON_LOADED", function()
         DamiaUI.Events:Fire("DAMIA_BATCH_UI_UPDATE", events)
     end, BATCH_WINDOW, MAX_BATCH_SIZE)
     
-    DamiaUI.Engine:LogDebug("Default throttled events registered")
+    LogDebug("Default throttled events registered")
 end, 3, "Throttle_DefaultEvents")
 
 -- Slash command for throttling control
@@ -852,13 +877,13 @@ SlashCmdList["DAMIATHROTTLE"] = function(msg)
             Throttle:SetGlobalMultiplier(multiplier)
         end
     else
-        DamiaUI.Engine:LogInfo("Throttling Commands:")
-        DamiaUI.Engine:LogInfo("  /damiathrottle report - Show throttling report")
-        DamiaUI.Engine:LogInfo("  /damiathrottle reset - Reset statistics")
-        DamiaUI.Engine:LogInfo("  /damiathrottle enable/disable - Control throttling")
-        DamiaUI.Engine:LogInfo("  /damiathrottle adaptive on/off - Control adaptive mode")
-        DamiaUI.Engine:LogInfo("  /damiathrottle mult <number> - Set global multiplier")
+        LogInfo("Throttling Commands:")
+        LogInfo("  /damiathrottle report - Show throttling report")
+        LogInfo("  /damiathrottle reset - Reset statistics")
+        LogInfo("  /damiathrottle enable/disable - Control throttling")
+        LogInfo("  /damiathrottle adaptive on/off - Control adaptive mode")
+        LogInfo("  /damiathrottle mult <number> - Set global multiplier")
     end
 end
 
-DamiaUI.Engine:LogInfo("Event throttling and update frequency management system loaded")
+LogInfo("Event throttling and update frequency management system loaded")

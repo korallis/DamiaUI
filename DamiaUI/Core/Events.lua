@@ -36,6 +36,31 @@ local string = string
 local Events = {}
 DamiaUI.Events = Events
 
+-- Safe logging functions that check if Engine exists
+local function LogDebug(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogDebug then
+        LogDebug(...)
+    end
+end
+
+local function LogInfo(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogInfo then
+        LogInfo(...)
+    end
+end
+
+local function LogWarning(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogWarning then
+        LogWarning(...)
+    end
+end
+
+local function LogError(...)
+    if DamiaUI.Engine and DamiaUI.Engine.LogError then
+        LogError(...)
+    end
+end
+
 -- Event system constants
 local PRIORITY_CRITICAL = 1
 local PRIORITY_HIGH = 2
@@ -121,7 +146,7 @@ end
 -- Reset event statistics
 function Events:ResetEventStatistics()
     eventStatistics = {}
-    DamiaUI.Engine:LogInfo("Event statistics reset")
+    LogInfo("Event statistics reset")
 end
 
 --[[
@@ -133,12 +158,14 @@ WOW EVENT HANDLING (TIER 1)
 -- Register WoW event handler with priority
 function Events:RegisterEvent(event, callback, priority, identifier)
     if not event or not callback then
-        DamiaUI.Engine:LogError("RegisterEvent: Invalid event or callback")
+        LogError("RegisterEvent: Invalid event or callback")
         return false
     end
     
     if type(callback) ~= "function" then
-        DamiaUI.Engine:LogError("RegisterEvent: Callback must be a function")
+        if DamiaUI.Engine and DamiaUI.Engine.LogError then
+            LogError("RegisterEvent: Callback must be a function")
+        end
         return false
     end
     
@@ -177,20 +204,22 @@ function Events:RegisterEvent(event, callback, priority, identifier)
         table.insert(eventHandlers[event], handler)
     end
     
-    DamiaUI.Engine:LogDebug("Registered event handler: %s for %s (priority %d)", 
-                           identifier, event, priority)
+    if DamiaUI.Engine and DamiaUI.Engine.LogDebug then
+        LogDebug("Registered event handler: %s for %s (priority %d)", 
+                               identifier, event, priority)
+    end
     return true
 end
 
 -- Unregister WoW event handler
 function Events:UnregisterEvent(event, identifier)
     if not event or not identifier then
-        DamiaUI.Engine:LogError("UnregisterEvent: Invalid event or identifier")
+        LogError("UnregisterEvent: Invalid event or identifier")
         return false
     end
     
     if not eventHandlers[event] then
-        DamiaUI.Engine:LogWarning("UnregisterEvent: Event %s not registered", event)
+        LogWarning("UnregisterEvent: Event %s not registered", event)
         return false
     end
     
@@ -205,12 +234,12 @@ function Events:UnregisterEvent(event, identifier)
                 eventHandlers[event] = nil
             end
             
-            DamiaUI.Engine:LogDebug("Unregistered event handler: %s for %s", identifier, event)
+            LogDebug("Unregistered event handler: %s for %s", identifier, event)
             return true
         end
     end
     
-    DamiaUI.Engine:LogWarning("UnregisterEvent: Handler %s not found for %s", identifier, event)
+    LogWarning("UnregisterEvent: Handler %s not found for %s", identifier, event)
     return false
 end
 
@@ -223,7 +252,7 @@ function Events:SetEventHandlerEnabled(event, identifier, enabled)
     for _, handler in ipairs(eventHandlers[event]) do
         if handler.identifier == identifier then
             handler.enabled = enabled
-            DamiaUI.Engine:LogDebug("Event handler %s for %s %s", 
+            LogDebug("Event handler %s for %s %s", 
                                    identifier, event, enabled and "enabled" or "disabled")
             return true
         end
@@ -274,7 +303,7 @@ local function ProcessWoWEvent(event, ...)
                 errorCount = errorCount + 1
                 handler.lastError = result
                 if not DamiaUI.ErrorHandler then
-                    DamiaUI.Engine:LogError("Event handler error [%s]: %s", handler.identifier, result)
+                    LogError("Event handler error [%s]: %s", handler.identifier, result)
                 end
             end
         end
@@ -284,7 +313,7 @@ local function ProcessWoWEvent(event, ...)
     UpdateEventStats(event, totalTime, errorCount > 0)
     
     if totalTime > 0.01 then -- Log slow events (>10ms)
-        DamiaUI.Engine:LogWarning("Slow event processing: %s took %.2fms", event, totalTime * 1000)
+        LogWarning("Slow event processing: %s took %.2fms", event, totalTime * 1000)
     end
 end
 
@@ -297,7 +326,7 @@ CUSTOM EVENT SYSTEM (TIER 2)
 -- Fire custom event for inter-module communication
 function Events:Fire(eventName, ...)
     if not eventName then
-        DamiaUI.Engine:LogError("Fire: Invalid event name")
+        LogError("Fire: Invalid event name")
         return false
     end
     
@@ -310,7 +339,7 @@ function Events:Fire(eventName, ...)
     local processedCount = 0
     local errorCount = 0
     
-    DamiaUI.Engine:LogDebug("Firing custom event: %s", eventName)
+    LogDebug("Firing custom event: %s", eventName)
     
     -- Process custom event handlers
     for _, handler in ipairs(handlers) do
@@ -327,7 +356,7 @@ function Events:Fire(eventName, ...)
             else
                 errorCount = errorCount + 1
                 handler.lastError = result
-                DamiaUI.Engine:LogError("Custom event handler error [%s]: %s", 
+                LogError("Custom event handler error [%s]: %s", 
                                        handler.identifier, result)
             end
         end
@@ -342,7 +371,7 @@ end
 -- Register custom event handler
 function Events:RegisterCustomEvent(eventName, callback, priority, identifier)
     if not eventName or not callback then
-        DamiaUI.Engine:LogError("RegisterCustomEvent: Invalid event name or callback")
+        LogError("RegisterCustomEvent: Invalid event name or callback")
         return false
     end
     
@@ -378,7 +407,7 @@ function Events:RegisterCustomEvent(eventName, callback, priority, identifier)
         table.insert(customEventHandlers[eventName], handler)
     end
     
-    DamiaUI.Engine:LogDebug("Registered custom event handler: %s for %s", identifier, eventName)
+    LogDebug("Registered custom event handler: %s for %s", identifier, eventName)
     return true
 end
 
@@ -396,7 +425,7 @@ function Events:UnregisterCustomEvent(eventName, identifier)
                 customEventHandlers[eventName] = nil
             end
             
-            DamiaUI.Engine:LogDebug("Unregistered custom event handler: %s for %s", 
+            LogDebug("Unregistered custom event handler: %s for %s", 
                                    identifier, eventName)
             return true
         end
@@ -422,7 +451,7 @@ function Events:FireConfigEvent(configKey, oldValue, newValue)
         return true
     end
     
-    DamiaUI.Engine:LogDebug("Config changed: %s (%s -> %s)", 
+    LogDebug("Config changed: %s (%s -> %s)", 
                            configKey, tostring(oldValue), tostring(newValue))
     
     local startTime = GetTime()
@@ -437,7 +466,7 @@ function Events:FireConfigEvent(configKey, oldValue, newValue)
                 processedCount = processedCount + 1
             else
                 errorCount = errorCount + 1
-                DamiaUI.Engine:LogError("Config event handler error [%s]: %s", 
+                LogError("Config event handler error [%s]: %s", 
                                        handler.identifier, result)
             end
         end
@@ -455,7 +484,7 @@ end
 -- Register configuration change handler
 function Events:RegisterConfigEvent(configKey, callback, identifier)
     if not configKey or not callback then
-        DamiaUI.Engine:LogError("RegisterConfigEvent: Invalid config key or callback")
+        LogError("RegisterConfigEvent: Invalid config key or callback")
         return false
     end
     
@@ -474,7 +503,7 @@ function Events:RegisterConfigEvent(configKey, callback, identifier)
     
     table.insert(configEventHandlers[configKey], handler)
     
-    DamiaUI.Engine:LogDebug("Registered config event handler: %s for %s", identifier, configKey)
+    LogDebug("Registered config event handler: %s for %s", identifier, configKey)
     return true
 end
 
@@ -492,7 +521,7 @@ function Events:UnregisterConfigEvent(configKey, identifier)
                 configEventHandlers[configKey] = nil
             end
             
-            DamiaUI.Engine:LogDebug("Unregistered config event handler: %s for %s", 
+            LogDebug("Unregistered config event handler: %s for %s", 
                                    identifier, configKey)
             return true
         end
@@ -542,7 +571,7 @@ local function ProcessThrottledEvent(eventName, ...)
         local success, result = pcall(throttled.callback, eventName, unpack(throttled.pendingArgs))
         
         if not success then
-            DamiaUI.Engine:LogError("Throttled event error [%s]: %s", eventName, result)
+            LogError("Throttled event error [%s]: %s", eventName, result)
         end
         
         throttled.pendingArgs = nil
@@ -597,7 +626,7 @@ function Events:ProcessEventBatch(eventName)
     -- Fire custom event with batched data
     self:Fire("DAMIA_BATCH_" .. eventName, events)
     
-    DamiaUI.Engine:LogDebug("Processed batch: %s (%d events)", eventName, #events)
+    LogDebug("Processed batch: %s (%d events)", eventName, #events)
 end
 
 --[[
@@ -614,18 +643,18 @@ local function ProcessCombatEventQueue()
     end
     
     if #combatEventQueue > 0 then
-        DamiaUI.Engine:LogInfo("Processed %d queued combat events", #combatEventQueue)
+        LogInfo("Processed %d queued combat events", #combatEventQueue)
     end
 end
 
 -- Register combat state monitoring
 Events:RegisterEvent("PLAYER_REGEN_DISABLED", function()
-    DamiaUI.Engine:LogDebug("Entering combat - queuing non-critical events")
+    LogDebug("Entering combat - queuing non-critical events")
     Events:Fire("DAMIA_COMBAT_STATE_CHANGED", true)
 end, PRIORITY_CRITICAL, "DamiaUI_CombatEnter")
 
 Events:RegisterEvent("PLAYER_REGEN_ENABLED", function()
-    DamiaUI.Engine:LogDebug("Leaving combat - processing queued events")
+    LogDebug("Leaving combat - processing queued events")
     ProcessCombatEventQueue()
     Events:Fire("DAMIA_COMBAT_STATE_CHANGED", false)
 end, PRIORITY_CRITICAL, "DamiaUI_CombatLeave")
@@ -690,12 +719,12 @@ function Events:PrintStatus()
     for _ in pairs(customEventHandlers) do customEvents = customEvents + 1 end
     for _ in pairs(configEventHandlers) do configEvents = configEvents + 1 end
     
-    DamiaUI.Engine:LogInfo("Event System Status:")
-    DamiaUI.Engine:LogInfo("  WoW Events: %d", wowEvents)
-    DamiaUI.Engine:LogInfo("  Custom Events: %d", customEvents)
-    DamiaUI.Engine:LogInfo("  Config Events: %d", configEvents)
-    DamiaUI.Engine:LogInfo("  Combat Queue: %d", #combatEventQueue)
-    DamiaUI.Engine:LogInfo("  Throttled Events: %d", DamiaUI.Utils:GetTableSize(throttledEvents))
+    LogInfo("Event System Status:")
+    LogInfo("  WoW Events: %d", wowEvents)
+    LogInfo("  Custom Events: %d", customEvents)
+    LogInfo("  Config Events: %d", configEvents)
+    LogInfo("  Combat Queue: %d", #combatEventQueue)
+    LogInfo("  Throttled Events: %d", DamiaUI.Utils:GetTableSize(throttledEvents))
 end
 
 --[[
@@ -728,7 +757,7 @@ end
 -- Register core events for addon lifecycle
 Events:RegisterEvent("ADDON_LOADED", function(event, loadedAddonName)
     if loadedAddonName == addonName then
-        DamiaUI.Engine:LogInfo("Event system initialized")
+        LogInfo("Event system initialized")
         Events:Fire("DAMIA_ADDON_LOADED")
     end
 end, PRIORITY_CRITICAL, "DamiaUI_AddonLoaded")

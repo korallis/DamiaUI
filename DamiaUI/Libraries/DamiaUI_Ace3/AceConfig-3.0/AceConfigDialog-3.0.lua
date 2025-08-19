@@ -420,7 +420,7 @@ function AceConfigDialog:AddToBlizOptions(appName, name, parent, childGroups)
 end
 
 -- Initialize AceConfigDialog with AceConfig callback
-if AceConfig then
+if AceConfig and AceConfig.callbacks and type(AceConfig.callbacks.RegisterCallback) == "function" then
 	AceConfig.callbacks:RegisterCallback("ConfigTableChanged", function(event, appName)
 		local frame = OpenFrames[appName]
 		if frame then

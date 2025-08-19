@@ -7,7 +7,8 @@
     and threat detection.
 ]]
 
-local addonName, DamiaUI = ...
+local addonName = ...
+local DamiaUI = _G.DamiaUI
 if not DamiaUI then return end
 
 -- Local references for performance
@@ -21,10 +22,64 @@ local UnitGroupRolesAssigned = UnitGroupRolesAssigned
 local GetNumGroupMembers = GetNumGroupMembers
 local IsInGroup = IsInGroup
 local CreateFrame = CreateFrame
+local InCombatLockdown = InCombatLockdown
 
--- Module dependencies
-local oUF = DamiaUI.Libraries.oUF
-local Aurora = DamiaUI.Libraries.Aurora
+-- Module dependencies with safe checks
+local oUF = DamiaUI.Libraries and DamiaUI.Libraries.oUF
+local Aurora = DamiaUI.Libraries and DamiaUI.Libraries.Aurora
+local CombatLockdown = DamiaUI.CombatLockdown
+
+--[[
+    Safe party frame positioning with combat lockdown protection
+--]]
+local function SafePositionPartyFrames()
+    if not partyContainer then return end
+    
+    local x, y = DamiaUI.UnitFrames.GetCenterPosition(PARTY_CONFIG.position.x, PARTY_CONFIG.position.y)
+    
+    if CombatLockdown then
+        CombatLockdown:SafeSetPoint(partyContainer, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+        CombatLockdown:SafeSetScale(partyContainer, PARTY_CONFIG.scale)
+    else
+        if not InCombatLockdown() then
+            partyContainer:ClearAllPoints()
+            partyContainer:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+            partyContainer:SetScale(PARTY_CONFIG.scale)
+        else
+            DamiaUI.Engine:LogWarning("Party frame positioning deferred due to combat lockdown")
+        end
+    end
+end
+
+--[[
+    Safe party element updates with combat lockdown protection
+--]]
+local function SafeUpdatePartyElements()
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            -- Update party-specific elements that may require secure frame operations
+            for i = 1, PARTY_CONFIG.maxFrames do
+                local frame = partyFrames[i]
+                if frame then
+                    UpdatePartyVisibility(frame, "party" .. i)
+                    UpdateRoleIcon(frame, "party" .. i)
+                    UpdateThreatIndicator(frame, "party" .. i)
+                end
+            end
+        end)
+    else
+        if not InCombatLockdown() then
+            for i = 1, PARTY_CONFIG.maxFrames do
+                local frame = partyFrames[i]
+                if frame then
+                    UpdatePartyVisibility(frame, "party" .. i)
+                    UpdateRoleIcon(frame, "party" .. i)
+                    UpdateThreatIndicator(frame, "party" .. i)
+                end
+            end
+        end
+    end
+end
 
 -- Party frame configuration
 local PARTY_CONFIG = {
@@ -251,9 +306,18 @@ local function CreatePartyContainer()
     partyContainer = CreateFrame("Frame", "DamiaUI_PartyContainer", UIParent)
     partyContainer:SetSize(PARTY_CONFIG.size.width, PARTY_CONFIG.size.height * PARTY_CONFIG.maxFrames)
     
-    -- Position at party-specific coordinates
-    local x, y = DamiaUI.UnitFrames.GetCenterPosition(PARTY_CONFIG.position.x, PARTY_CONFIG.position.y)
-    partyContainer:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+    -- Position at party-specific coordinates (with combat lockdown protection)
+    if CombatLockdown then
+        local x, y = DamiaUI.UnitFrames.GetCenterPosition(PARTY_CONFIG.position.x, PARTY_CONFIG.position.y)
+        CombatLockdown:SafeSetPoint(partyContainer, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+    else
+        if not InCombatLockdown() then
+            local x, y = DamiaUI.UnitFrames.GetCenterPosition(PARTY_CONFIG.position.x, PARTY_CONFIG.position.y)
+            partyContainer:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+        else
+            DamiaUI.Engine:LogWarning("Party container positioning deferred due to combat lockdown")
+        end
+    end
     
     return partyContainer
 end
@@ -264,13 +328,31 @@ end
 local function PositionPartyFrames()
     if not partyContainer then return end
     
-    local yOffset = 0
-    for i = 1, PARTY_CONFIG.maxFrames do
-        local frame = partyFrames[i]
-        if frame then
-            frame:ClearAllPoints()
-            frame:SetPoint("TOPLEFT", partyContainer, "TOPLEFT", 0, yOffset)
-            yOffset = yOffset - (PARTY_CONFIG.size.height + PARTY_CONFIG.spacing) * PARTY_CONFIG.scale
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            local yOffset = 0
+            for i = 1, PARTY_CONFIG.maxFrames do
+                local frame = partyFrames[i]
+                if frame then
+                    frame:ClearAllPoints()
+                    frame:SetPoint("TOPLEFT", partyContainer, "TOPLEFT", 0, yOffset)
+                    yOffset = yOffset - (PARTY_CONFIG.size.height + PARTY_CONFIG.spacing) * PARTY_CONFIG.scale
+                end
+            end
+        end)
+    else
+        if not InCombatLockdown() then
+            local yOffset = 0
+            for i = 1, PARTY_CONFIG.maxFrames do
+                local frame = partyFrames[i]
+                if frame then
+                    frame:ClearAllPoints()
+                    frame:SetPoint("TOPLEFT", partyContainer, "TOPLEFT", 0, yOffset)
+                    yOffset = yOffset - (PARTY_CONFIG.size.height + PARTY_CONFIG.spacing) * PARTY_CONFIG.scale
+                end
+            end
+        else
+            DamiaUI.Engine:LogWarning("Party frame positioning deferred due to combat lockdown")
         end
     end
 end
@@ -286,32 +368,69 @@ local function UpdatePartyVisibility()
         CreatePartyContainer()
     end
     
-    if inGroup and numMembers > 1 then
-        partyContainer:Show()
-        
-        -- Show frames for actual party members
-        for i = 1, numMembers - 1 do -- -1 because player is not in party units
-            if partyFrames[i] then
-                partyFrames[i]:Show()
-                UpdateRoleIndicator(partyFrames[i])
+    if CombatLockdown then
+        CombatLockdown:SafeUpdateUnitFrames(function()
+            if inGroup and numMembers > 1 then
+                partyContainer:Show()
+                
+                -- Show frames for actual party members
+                for i = 1, numMembers - 1 do -- -1 because player is not in party units
+                    if partyFrames[i] then
+                        partyFrames[i]:Show()
+                        UpdateRoleIndicator(partyFrames[i])
+                    end
+                end
+                
+                -- Hide unused frames
+                for i = numMembers, PARTY_CONFIG.maxFrames do
+                    if partyFrames[i] then
+                        partyFrames[i]:Hide()
+                    end
+                end
+            else
+                -- Hide all party frames when not in group
+                if partyContainer then
+                    partyContainer:Hide()
+                end
+                for i = 1, PARTY_CONFIG.maxFrames do
+                    if partyFrames[i] then
+                        partyFrames[i]:Hide()
+                    end
+                end
             end
-        end
-        
-        -- Hide unused frames
-        for i = numMembers, PARTY_CONFIG.maxFrames do
-            if partyFrames[i] then
-                partyFrames[i]:Hide()
-            end
-        end
+        end)
     else
-        -- Hide all party frames when not in group
-        if partyContainer then
-            partyContainer:Hide()
-        end
-        for i = 1, PARTY_CONFIG.maxFrames do
-            if partyFrames[i] then
-                partyFrames[i]:Hide()
+        if not InCombatLockdown() then
+            if inGroup and numMembers > 1 then
+                partyContainer:Show()
+                
+                -- Show frames for actual party members
+                for i = 1, numMembers - 1 do -- -1 because player is not in party units
+                    if partyFrames[i] then
+                        partyFrames[i]:Show()
+                        UpdateRoleIndicator(partyFrames[i])
+                    end
+                end
+                
+                -- Hide unused frames
+                for i = numMembers, PARTY_CONFIG.maxFrames do
+                    if partyFrames[i] then
+                        partyFrames[i]:Hide()
+                    end
+                end
+            else
+                -- Hide all party frames when not in group
+                if partyContainer then
+                    partyContainer:Hide()
+                end
+                for i = 1, PARTY_CONFIG.maxFrames do
+                    if partyFrames[i] then
+                        partyFrames[i]:Hide()
+                    end
+                end
             end
+        else
+            DamiaUI.Engine:LogWarning("Party visibility update deferred due to combat lockdown")
         end
     end
 end
@@ -320,6 +439,11 @@ end
     Initialize party frames
 ]]
 local function InitializePartyFrames()
+    -- Validate oUF is available
+    if not oUF then
+        return -- oUF not available, can't create party frames
+    end
+    
     -- Create container
     CreatePartyContainer()
     
@@ -373,11 +497,20 @@ local function SetPartyConfig(key, value)
     if PARTY_CONFIG[key] ~= nil then
         PARTY_CONFIG[key] = value
         
-        -- Update frames if needed
+        -- Update frames if needed (with combat lockdown protection)
         if key == "position" then
             if partyContainer then
-                local x, y = DamiaUI.UnitFrames.GetCenterPosition(value.x, value.y)
-                partyContainer:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+                if CombatLockdown then
+                    local x, y = DamiaUI.UnitFrames.GetCenterPosition(value.x, value.y)
+                    CombatLockdown:SafeSetPoint(partyContainer, "CENTER", UIParent, "BOTTOMLEFT", x, y)
+                else
+                    if not InCombatLockdown() then
+                        local x, y = DamiaUI.UnitFrames.GetCenterPosition(value.x, value.y)
+                        partyContainer:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
+                    else
+                        DamiaUI.Engine:LogWarning("Party position update deferred due to combat lockdown")
+                    end
+                end
             end
         elseif key == "scale" or key == "size" or key == "spacing" then
             PositionPartyFrames()
@@ -394,15 +527,17 @@ local PartyFrames = {
     GetConfig = GetPartyConfig,
     SetConfig = SetPartyConfig,
     GetFrames = function() return partyFrames end,
-    GetContainer = function() return partyContainer end
+    GetContainer = function() return partyContainer end,
+    SafePosition = SafePositionPartyFrames,
+    SafeUpdateElements = SafeUpdatePartyElements
 }
 
--- Export to DamiaUI namespace
-if not DamiaUI.UnitFrames then
-    DamiaUI.UnitFrames = {}
+-- Export to DamiaUI namespace (UnitFrames should already exist from UnitFrames.lua)
+if DamiaUI.UnitFrames then
+    DamiaUI.UnitFrames.Party = PartyFrames
 end
 
-DamiaUI.UnitFrames.Party = PartyFrames
-
--- Auto-initialize on load
-InitializePartyFrames()
+-- Initialize later when addon is ready
+C_Timer.After(0, function()
+    InitializePartyFrames()
+end)

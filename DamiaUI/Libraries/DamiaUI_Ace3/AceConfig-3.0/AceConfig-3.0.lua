@@ -57,7 +57,17 @@ local _G = _G
 -- GLOBALS: LibStub
 
 AceConfig.apps = AceConfig.apps or {}
-AceConfig.callbacks = AceConfig.callbacks or LibStub("CallbackHandler-1.0"):New(AceConfig)
+-- Initialize callbacks only if CallbackHandler is available
+local CallbackHandler = LibStub:GetLibrary("CallbackHandler-1.0", true)
+if CallbackHandler then
+	AceConfig.callbacks = AceConfig.callbacks or CallbackHandler:New(AceConfig)
+else
+	-- Create a proper stub for callbacks if CallbackHandler isn't available
+	-- Methods need to accept self as first parameter when called with :
+	AceConfig.callbacks = AceConfig.callbacks or {}
+	AceConfig.callbacks.Fire = function(self, ...) end
+	AceConfig.callbacks.RegisterCallback = function(self, ...) end
+end
 
 local apps = AceConfig.apps
 

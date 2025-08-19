@@ -63,19 +63,17 @@ oUF.activeStyle = nil
 oUF.version = version
 oUF.versionString = MAJOR_VERSION
 
--- Debug and logging functions
+-- Debug and logging functions removed
 local function DebugPrint(...)
-    if DEBUG_MODE then
-        print("|cff00ff00[" .. ADDON_NAME .. " Debug]|r", ...)
-    end
+    -- Debug logging removed
 end
 
 local function ErrorPrint(...)
-    print("|cffff0000[" .. ADDON_NAME .. " Error]|r", ...)
+    -- Error logging removed
 end
 
 local function InfoPrint(...)
-    print("|cff00ccff[" .. ADDON_NAME .. "]|r", ...)
+    -- Info logging removed
 end
 
 -- Utility functions
@@ -586,6 +584,11 @@ end)
 
 -- Export the library
 _G.DamiaUI_oUF = oUF
+
+-- Register with DamiaUI if available
+if _G.DamiaUI and _G.DamiaUI.Libraries then
+    _G.DamiaUI.Libraries.oUF = oUF
+end
 
 -- Return for LibStub
 return oUF

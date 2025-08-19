@@ -419,18 +419,21 @@ local function InitializeContextManager()
         end
     end)
     
-    DamiaUI.Engine:LogInfo("Context Manager initialized - Current context: %s (%d members)", 
-        GetContextName(currentContext.type), currentContext.memberCount)
+    -- Log initialization if engine is available
+    if DamiaUI.Engine and DamiaUI.Engine.LogInfo then
+        DamiaUI.Engine:LogInfo("Context Manager initialized - Current context: %s (%d members)", 
+            GetContextName(currentContext.type), currentContext.memberCount)
+    end
     
     return updateTicker
 end
 
--- Export to DamiaUI namespace
-if not DamiaUI.UnitFrames then
-    DamiaUI.UnitFrames = {}
+-- Export to DamiaUI namespace (UnitFrames should already exist from UnitFrames.lua)
+if DamiaUI.UnitFrames then
+    DamiaUI.UnitFrames.ContextManager = ContextManager
 end
 
-DamiaUI.UnitFrames.ContextManager = ContextManager
-
--- Auto-initialize
-InitializeContextManager()
+-- Initialize later when addon is ready
+C_Timer.After(0, function()
+    InitializeContextManager()
+end)

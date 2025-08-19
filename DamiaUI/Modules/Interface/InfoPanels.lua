@@ -19,6 +19,10 @@ end
 local _G = _G
 local pairs, ipairs = pairs, ipairs
 local type, tonumber, tostring = type, tonumber, tostring
+local string = string
+local strformat = string.format
+local math = math
+local mathfloor = mathfloor
 local CreateFrame = CreateFrame
 local InCombatLockdown = InCombatLockdown
 local UIParent = UIParent
@@ -110,7 +114,7 @@ local BUILTIN_DATA_OBJECTS = {
         OnTooltipShow = function(tooltip)
             local memory = GetAddOnMemoryUsage(addonName)
             tooltip:AddLine("Memory Usage")
-            tooltip:AddLine(string.format("DamiaUI: %.2f MB", memory / 1024))
+            tooltip:AddLine(strformat("DamiaUI: %.2f MB", memory / 1024))
             tooltip:AddLine("Click to run garbage collection")
             tooltip:Show()
         end
@@ -143,7 +147,7 @@ local BUILTIN_DATA_OBJECTS = {
             if position then
                 local x, y = position:GetXY()
                 tooltip:AddLine("Player Coordinates")
-                tooltip:AddLine(string.format("X: %.1f, Y: %.1f", x * 100, y * 100))
+                tooltip:AddLine(strformat("X: %.1f, Y: %.1f", x * 100, y * 100))
             else
                 tooltip:AddLine("Coordinates unavailable")
             end
@@ -169,7 +173,7 @@ local BUILTIN_DATA_OBJECTS = {
                     end
                 end
             end
-            tooltip:AddLine(string.format("Lowest: %.0f%%", lowest))
+            tooltip:AddLine(strformat("Lowest: %.0f%%", lowest))
             tooltip:Show()
         end
     },
@@ -182,12 +186,12 @@ local BUILTIN_DATA_OBJECTS = {
         value = 0,
         OnTooltipShow = function(tooltip)
             local money = GetMoney()
-            local gold = math.floor(money / 10000)
-            local silver = math.floor((money % 10000) / 100)
+            local gold = mathfloor(money / 10000)
+            local silver = mathfloor((money % 10000) / 100)
             local copper = money % 100
             
             tooltip:AddLine("Currency")
-            tooltip:AddLine(string.format("%dg %ds %dc", gold, silver, copper))
+            tooltip:AddLine(strformat("%dg %ds %dc", gold, silver, copper))
             tooltip:Show()
         end
     }
@@ -326,7 +330,7 @@ local function UpdateBuiltinData()
     if dataObjects.framerate then
         local fps = GetFramerate()
         dataObjects.framerate.value = fps
-        dataObjects.framerate.text = string.format("%.0f fps", fps)
+        dataObjects.framerate.text = strformat("%.0f fps", fps)
     end
     
     -- Update memory
@@ -334,7 +338,7 @@ local function UpdateBuiltinData()
         UpdateAddOnMemoryUsage()
         local memory = GetAddOnMemoryUsage(addonName) / 1024
         dataObjects.memory.value = memory
-        dataObjects.memory.text = string.format("%.1f MB", memory)
+        dataObjects.memory.text = strformat("%.1f MB", memory)
     end
     
     -- Update latency
@@ -342,7 +346,7 @@ local function UpdateBuiltinData()
         local _, _, lagHome, lagWorld = GetNetStats()
         local avgLag = (lagHome + lagWorld) / 2
         dataObjects.latency.value = avgLag
-        dataObjects.latency.text = string.format("%dms", avgLag)
+        dataObjects.latency.text = strformat("%dms", avgLag)
     end
     
     -- Update coordinates
@@ -352,7 +356,7 @@ local function UpdateBuiltinData()
             local position = C_Map.GetPlayerMapPosition(mapID, "player")
             if position then
                 local x, y = position:GetXY()
-                dataObjects.coordinates.text = string.format("%.1f, %.1f", x * 100, y * 100)
+                dataObjects.coordinates.text = strformat("%.1f, %.1f", x * 100, y * 100)
             end
         end
     end
@@ -370,18 +374,18 @@ local function UpdateBuiltinData()
             end
         end
         dataObjects.durability.value = lowest
-        dataObjects.durability.text = string.format("%.0f%%", lowest)
+        dataObjects.durability.text = strformat("%.0f%%", lowest)
     end
     
     -- Update currency
     if dataObjects.currency then
         local money = GetMoney()
-        local gold = math.floor(money / 10000)
+        local gold = mathfloor(money / 10000)
         dataObjects.currency.value = gold
         if gold >= 10000 then
-            dataObjects.currency.text = string.format("%.0fk", gold / 1000)
+            dataObjects.currency.text = strformat("%.0fk", gold / 1000)
         else
-            dataObjects.currency.text = string.format("%dg", gold)
+            dataObjects.currency.text = strformat("%dg", gold)
         end
     end
 end
@@ -448,7 +452,7 @@ end
 ]]
 function InfoPanels:ShowConfigMenu(panelName, panel)
     -- Simple configuration menu (expandable)
-    print("DamiaUI InfoPanels: Right-click configuration for " .. panelName .. " (feature coming soon)")
+    -- Configuration menu logging removed
 end
 
 function InfoPanels:UpdateConfiguration(newConfig)
@@ -580,12 +584,12 @@ local function OnInfoPanelEvent(event, ...)
         -- Update currency immediately
         if dataObjects.currency then
             local money = GetMoney()
-            local gold = math.floor(money / 10000)
+            local gold = mathfloor(money / 10000)
             dataObjects.currency.value = gold
             if gold >= 10000 then
-                dataObjects.currency.text = string.format("%.0fk", gold / 1000)
+                dataObjects.currency.text = strformat("%.0fk", gold / 1000)
             else
-                dataObjects.currency.text = string.format("%dg", gold)
+                dataObjects.currency.text = strformat("%dg", gold)
             end
             InfoPanels:UpdatePanel("bottomLeft")
         end

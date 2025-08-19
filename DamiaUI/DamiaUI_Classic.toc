@@ -1,4 +1,4 @@
-## Interface: 11506
+## Interface: 110200
 ## Title: |cffCC8010DamiaUI|r
 ## Notes: Complete interface replacement with centered layout inspired by classic Damia design. Features unit frames, action bars, skinning, and comprehensive configuration. Classic Era compatible.
 ## Notes-deDE: Vollständiger Oberflächenersatz mit zentriertem Layout im klassischen Damia-Design. Enthält Einheitenrahmen, Aktionsleisten, Skins und umfassende Konfiguration. Classic Era kompatibel.
@@ -28,8 +28,8 @@
 ## X-Discord: https://discord.gg/damiaui
 ## X-CompatibleLocales: enUS, deDE, esES, esMX, frFR, itIT, koKR, ptBR, ruRU, zhCN, zhTW
 ## X-Localizations: enUS, deDE, frFR, esES, ptBR, ruRU
-## X-Min-Interface: 11506
-## X-Max-Interface: 11506
+## X-Min-Interface: 110200
+## X-Max-Interface: 110299
 ## X-LoadOn-Class: 
 ## X-LoadOn-Race: 
 ## X-LoadOn-Faction: 
@@ -65,8 +65,6 @@ Core\CompatibilityUtils.lua
 Core\Engine.lua
 Core\Utils.lua
 Core\Events.lua
-Core\Performance.lua
-Core\Memory.lua
 Core\Throttle.lua
 Core\Config.lua
 

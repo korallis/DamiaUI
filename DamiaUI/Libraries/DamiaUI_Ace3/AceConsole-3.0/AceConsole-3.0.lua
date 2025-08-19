@@ -195,9 +195,9 @@ end
 function AceConsole:Printf(fmt, ...)
 	local success, result = pcall(string.format, fmt, ...)
 	if success then
-		DEFAULT_CHAT_FRAME:AddMessage(result)
+		-- Printf result logging removed
 	else
-		DEFAULT_CHAT_FRAME:AddMessage("Printf error: " .. tostring(result))
+		-- Printf error logging removed
 	end
 end
 
@@ -207,7 +207,7 @@ function AceConsole:Print(...)
 		local arg = select(i, ...)
 		output[i] = tostring(arg)
 	end
-	DEFAULT_CHAT_FRAME:AddMessage(tconcat(output, " "))
+	-- Print output logging removed
 end
 
 -- Enhanced command registration with argument parsing

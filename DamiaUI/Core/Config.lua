@@ -934,7 +934,7 @@ if not DamiaUI.ErrorHandler then
         SafeCall = function(self, func, module, context, ...)
             local success, result = pcall(func, ...)
             if not success then
-                print("|cffff0000[DamiaUI Config Error]|r " .. tostring(result))
+                -- Config error logging removed
             end
             return success, result
         end
@@ -953,4 +953,5 @@ else
     end)
 end
 
-DamiaUI.Engine:LogInfo("Configuration system loaded")
+-- Don't log at load time - Engine might not be initialized yet
+-- Logging will happen during Initialize()

@@ -129,7 +129,7 @@ end
 -- Initialize addon
 local function AddonLog(addon, ...)
 	local name = addon.moduleName or addon.name or "(Unknown)"
-	DEFAULT_CHAT_FRAME:AddMessage("|cffff8040DamiaUI|r: " .. name .. ": " .. tconcat({...}, " "))
+	-- Debug logging removed
 end
 
 -- Event handlers
@@ -189,7 +189,7 @@ end
 
 function AddonProto:Print(...)
 	local name = self.moduleName or self.name
-	DEFAULT_CHAT_FRAME:AddMessage("|cffff8040" .. (name or "DamiaUI") .. "|r: " .. tconcat({...}, " "))
+	-- Print logging removed
 end
 
 function AddonProto:EnableModule(module)

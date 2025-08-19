@@ -112,8 +112,8 @@ function SafeMode:Activate(reason)
     safeModeState.activatedAt = GetTime()
     safeModeState.activationReason = reason or "Unknown critical error"
     
-    print(string.format("|cffff0000[%s] SAFE MODE ACTIVATED|r", addonName))
-    print(string.format("|cffff8800Reason: %s|r", safeModeState.activationReason))
+    -- Safe mode activation logging removed
+    -- Safe mode reason logging removed
     
     -- Initialize safe mode components
     self:InitializeSafeModeFrames()
@@ -143,7 +143,7 @@ function SafeMode:Deactivate()
         return false
     end
     
-    print(string.format("|cff00ff00[%s] Safe mode deactivated|r", addonName))
+    -- Safe mode deactivation logging removed
     
     -- Clean up safe mode components
     self:CleanupSafeModeFrames()
@@ -195,7 +195,7 @@ function SafeMode:InitializeSafeModeFrames()
     -- Initialize minimal UI elements
     self:InitializeMinimalUI()
     
-    print("|cff00ccff[" .. addonName .. "] Safe mode frames initialized|r")
+    -- Safe mode frames initialization logging removed
 end
 
 -- Create status frame showing safe mode information
@@ -317,7 +317,7 @@ function SafeMode:CreateEmergencyToolsFrame()
         if DamiaUI.ErrorHandler then
             DamiaUI.ErrorHandler:ClearErrorHistory()
         end
-        print("|cff00ff00Error history cleared|r")
+        -- Error history cleared logging removed
     end)
     
     -- Close button
@@ -359,7 +359,7 @@ function SafeMode:InitializeMinimalUI()
             if not isEssential and module.OnDisable then
                 local success, err = pcall(module.OnDisable, module)
                 if not success then
-                    print(string.format("|cffff8800Failed to disable module %s: %s|r", name, err))
+                    -- Module disable failure logging removed
                 end
             end
         end
@@ -399,7 +399,7 @@ function SafeMode:LoadMinimalConfiguration()
     if not DamiaUI.Config then
         -- Create basic configuration fallback
         safeModeState.safeModeData = DamiaUI.Utils:CopyTable(fallbackDefaults)
-        print("|cffff8800[" .. addonName .. "] Using fallback configuration - Config module unavailable|r")
+        -- Fallback configuration logging removed
         return
     end
     
@@ -435,9 +435,9 @@ function SafeMode:LoadMinimalConfiguration()
     end)
     
     if success then
-        print("|cff00ccff[" .. addonName .. "] Safe configuration loaded|r")
+        -- Safe configuration loaded logging removed
     else
-        print(string.format("|cffff0000[%s] Failed to load safe configuration: %s|r", addonName, tostring(result)))
+        -- Safe configuration load failure logging removed
         safeModeState.safeModeData = DamiaUI.Utils:CopyTable(fallbackDefaults)
     end
 end
@@ -445,7 +445,7 @@ end
 -- Reset configuration to safe defaults
 function SafeMode:ResetConfiguration()
     if not DamiaUI.Config then
-        print("|cffff0000Configuration module not available for reset|r")
+        -- Configuration module unavailable logging removed
         return false
     end
     
@@ -468,13 +468,13 @@ function SafeMode:ResetConfiguration()
     end)
     
     if success then
-        print("|cff00ff00[" .. addonName .. "] Configuration reset to safe defaults|r")
+        -- Configuration reset logging removed
         
         -- Ask user if they want to reload UI
         StaticPopup_Show("DAMIAUI_SAFE_RELOAD_CONFIRM")
         return true
     else
-        print(string.format("|cffff0000[%s] Configuration reset failed: %s|r", addonName, tostring(result)))
+        -- Configuration reset failure logging removed
         return false
     end
 end
@@ -539,8 +539,7 @@ function SafeMode:InitializeEmergencyTools()
         end
     end
     
-    print(string.format("|cff00ccff[%s] Emergency tools initialized (%d tools)|r", 
-                       addonName, #safeModeState.emergencyTools))
+    -- Emergency tools initialization logging removed
 end
 
 -- Handle emergency slash commands
@@ -559,7 +558,7 @@ function SafeMode:HandleEmergencyCommand(input)
     elseif command == "show" or command == "tools" then
         self:ShowEmergencyTools()
     elseif command == "reload" then
-        print("|cffff0000Reloading UI in 3 seconds...|r")
+        -- UI reload logging removed
         C_Timer.After(3, ReloadUI)
     elseif command == "reset" then
         self:ResetConfiguration()
@@ -568,28 +567,28 @@ function SafeMode:HandleEmergencyCommand(input)
     elseif command == "deactivate" then
         if safeModeState.active then
             self:Deactivate()
-            print("|cff00ff00Safe mode deactivated|r")
+            -- Safe mode deactivated logging removed
         else
-            print("|cffff8800Safe mode is not active|r")
+            -- Safe mode status logging removed
         end
     elseif command == "errors" then
         self:ShowErrorSummary()
     else
-        print("|cffff8800Unknown emergency command: " .. command .. "|r")
+        -- Unknown command logging removed
         self:ShowEmergencyHelp()
     end
 end
 
 -- Show emergency command help
 function SafeMode:ShowEmergencyHelp()
-    print("|cff00ccff[" .. addonName .. "] Emergency Commands:|r")
-    print("  |cffffffff/damiasafe help|r - Show this help")
-    print("  |cffffffff/damiasafe show|r - Show emergency tools")
-    print("  |cffffffff/damiasafe reload|r - Reload UI")
-    print("  |cffffffff/damiasafe reset|r - Reset configuration")
-    print("  |cffffffff/damiasafe status|r - Show safe mode status")
-    print("  |cffffffff/damiasafe deactivate|r - Exit safe mode")
-    print("  |cffffffff/damiasafe errors|r - Show error summary")
+    -- Emergency commands help logging removed
+    -- Help command logging removed
+    -- Show command logging removed
+    -- Reload command logging removed
+    -- Reset command logging removed
+    -- Status command logging removed
+    -- Deactivate command logging removed
+    -- Errors command logging removed
 end
 
 -- Show emergency tools window
@@ -605,23 +604,23 @@ end
 -- Show error summary
 function SafeMode:ShowErrorSummary()
     if not DamiaUI.ErrorHandler then
-        print("|cffff8800Error Handler not available|r")
+        -- Error handler unavailable logging removed
         return
     end
     
     local stats = DamiaUI.ErrorHandler:GetErrorStatistics()
     local recentErrors = DamiaUI.ErrorHandler:GetRecentErrors(5)
     
-    print("|cff00ccff[" .. addonName .. "] Error Summary:|r")
-    print(string.format("  Total Errors: |cffffffff%d|r", stats.totalErrors))
-    print(string.format("  Critical Errors: |cffff0000%d|r", stats.criticalErrors))
-    print(string.format("  Safe Mode Active: |cffffffff%s|r", stats.safeModeActive and "Yes" or "No"))
+    -- Error summary header logging removed
+    -- Total errors logging removed
+    -- Critical errors logging removed
+    -- Safe mode status logging removed
     
     if #recentErrors > 0 then
-        print("  Recent Errors:")
+        -- Recent errors header logging removed
         for i, error in ipairs(recentErrors) do
             local timeAgo = math.floor(GetTime() - error.timestamp)
-            print(string.format("    |cff666666%ds ago:|r %s", timeAgo, error.message))
+            -- Individual error logging removed
         end
     end
 end
@@ -668,8 +667,7 @@ function SafeMode:StartSafeModeMonitoring()
         
         -- Auto-exit safe mode after maximum time
         if duration > safeModeConfig.maxSafeModeTime then
-            print(string.format("|cffff8800[%s] Auto-exiting safe mode after %d seconds|r", 
-                               addonName, safeModeConfig.maxSafeModeTime))
+            -- Auto-exit logging removed
             SafeMode:Deactivate()
             return
         end
@@ -741,7 +739,7 @@ end
 -- Integration with main engine
 function SafeMode:OnEnable()
     -- Safe mode is always enabled but inactive
-    print("|cff00ccff[" .. addonName .. "] Safe Mode ready|r")
+    -- Safe mode ready logging removed
     return true
 end
 
@@ -773,7 +771,7 @@ INITIALIZATION
 
 -- Initialize safe mode module
 function SafeMode:Initialize()
-    print("|cff00ccff[" .. addonName .. "] Safe Mode module initialized|r")
+    -- Safe mode module initialized logging removed
     
     -- Register with main engine if available
     if DamiaUI.RegisterModule then
