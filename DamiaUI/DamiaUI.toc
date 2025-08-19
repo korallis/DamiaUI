@@ -20,3 +20,4 @@ Core\Load.xml
 
 # Modules
 Modules\ActionBars.lua
+Modules\UnitFrames.lua
