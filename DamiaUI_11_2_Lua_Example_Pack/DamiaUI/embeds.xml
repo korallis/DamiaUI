@@ -1,0 +1,21 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+    <!-- Vendor your libraries in DamiaUI/Libs/ or configure .pkgmeta for externals -->
+    <!-- Ace3 (if used) -->
+    <!-- <Include file="Libs\Ace3\AceAddon-3.0\AceAddon-3.0.xml"/> -->
+    <!-- <Include file="Libs\Ace3\AceEvent-3.0\AceEvent-3.0.xml"/> -->
+    <!-- <Include file="Libs\Ace3\AceConsole-3.0\AceConsole-3.0.xml"/> -->
+    <!-- <Include file="Libs\Ace3\AceDB-3.0\AceDB-3.0.xml"/> -->
+    <!-- <Include file="Libs\Ace3\AceConfig-3.0\AceConfig-3.0.xml"/> -->
+
+    <!-- LibSharedMedia -->
+    <!-- <Script file="Libs\LibSharedMedia-3.0\LibSharedMedia-3.0.lua"/> -->
+
+    <!-- LibDataBroker (if used directly) -->
+    <!-- <Script file="Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua"/> -->
+
+    <!-- oUF (if embedded) -->
+    <!-- <Include file="Libs\oUF\ouf.xml"/> -->
+
+    <!-- LibActionButton (if used) -->
+    <!-- <Include file="Libs\LibActionButton-1.0\LibActionButton-1.0.xml"/> -->
+</Ui>
