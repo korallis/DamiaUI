@@ -5,9 +5,35 @@
 local addonName, ns = ...
 
 -- Ensure AceDB-3.0 is available
-local AceDB = LibStub("AceDB-3.0")
+local LibStub = _G.LibStub
+local AceDB = LibStub and LibStub("AceDB-3.0", true)
 if not AceDB then
-    error("DamiaUI: AceDB-3.0 library not found!")
+    -- Create fallback profile system when AceDB is not available
+    ns.Profiles = {
+        initialized = false,
+        Initialize = function() end,
+        GetCurrentProfile = function() return "Default" end,
+        GetProfiles = function() return {"Default"} end,
+        SetProfile = function() return false end,
+        CreateProfile = function() return false end,
+        DeleteProfile = function() return false end,
+        CopyProfile = function() return false end,
+        ResetProfile = function() return false end,
+        GetProfileInfo = function() return nil end,
+        GetProfileConfig = function() return nil end,
+        ExportProfile = function() return nil end,
+        ImportProfile = function() return false end,
+        RegisterCallback = function() end,
+        FireCallback = function() end,
+        GetAPI = function()
+            return {
+                GetCurrentProfile = function() return "Default" end,
+                GetProfiles = function() return {"Default"} end,
+                SetProfile = function() return false end,
+            }
+        end
+    }
+    ns:Print("Warning: AceDB-3.0 not found. Profile system disabled.")
     return
 end
 
@@ -514,7 +540,7 @@ function Profiles:ExportProfile(profileName)
     }
     
     -- Serialize the data using AceSerializer
-    local AceSerializer = LibStub("AceSerializer-3.0")
+    local AceSerializer = LibStub and LibStub("AceSerializer-3.0", true)
     if not AceSerializer then
         ns:Print("AceSerializer not available for export")
         return nil
@@ -545,7 +571,7 @@ function Profiles:ImportProfile(importString, profileName)
     end
     
     -- Deserialize the data
-    local AceSerializer = LibStub("AceSerializer-3.0")
+    local AceSerializer = LibStub and LibStub("AceSerializer-3.0", true)
     if not AceSerializer then
         ns:Print("AceSerializer not available for import")
         return false

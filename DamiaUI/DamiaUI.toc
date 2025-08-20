@@ -10,9 +10,9 @@
 ## X-Website: https://github.com/korallis/DamiaUI
 ## X-License: MIT
 
-# Core Libraries - Use Ace3's versions for consistency
-Libraries\Ace3\LibStub\LibStub.lua
-Libraries\Ace3\CallbackHandler-1.0\CallbackHandler-1.0.xml
+# Core Libraries
+Libraries\LibStub\LibStub.lua
+Libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
 
 # Ace3 Libraries (for configuration and database)
 Libraries\Ace3\AceAddon-3.0\AceAddon-3.0.xml
@@ -31,7 +31,7 @@ Libraries\Ace3\AceTab-3.0\AceTab-3.0.xml
 Libraries\Ace3\AceSerializer-3.0\AceSerializer-3.0.xml
 
 # LibSharedMedia
-Libraries\LibSharedMedia-3.0\lib.xml
+Libraries\LibSharedMedia-3.0\LibSharedMedia-3.0.lua
 
 # LibActionButton (for action bars)
 Libraries\LibActionButton-1.0\LibActionButton-1.0.lua
@@ -40,10 +40,10 @@ Libraries\LibActionButton-1.0\LibButtonGlow-1.0\LibButtonGlow-1.0.lua
 # oUF (latest from GitHub for unit frames)
 Libraries\oUF\oUF.xml
 
-# rLib utilities
-Libraries\rLib\core\dragframe.lua
-Libraries\rLib\core\fader.lua
-Libraries\rLib\core\slashcmd.lua
+# rLib utilities - keep commented as these files need to be checked
+# Libraries\rLib\core\dragframe.lua
+# Libraries\rLib\core\fader.lua
+# Libraries\rLib\core\slashcmd.lua
 
 # Core
 Core\Init.lua

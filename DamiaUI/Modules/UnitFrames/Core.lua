@@ -14,22 +14,36 @@ UnitFrames.units = {}
 
 -- Initialize module
 function UnitFrames:Initialize()
+    print("[DEBUG] UnitFrames:Initialize() called")
+    
     -- Get config
     self.config = ns.config.unitframes
+    print("[DEBUG] UnitFrames config: " .. tostring(self.config ~= nil))
     
     if not self.config or not self.config.enabled then
+        print("[DEBUG] UnitFrames disabled or no config, returning")
         return
     end
     
+    print("[DEBUG] UnitFrames enabled, proceeding...")
+    
+    -- Register custom tags FIRST
+    self:RegisterTags()
+    print("[DEBUG] Custom tags registered")
+    
     -- Register oUF style
     self:RegisterStyle()
+    print("[DEBUG] oUF style registered")
     
     -- Set active style
     oUF:SetActiveStyle("DamiaUI")
+    print("[DEBUG] Active style set to DamiaUI")
     
     -- Spawn units
     self:SpawnUnits()
+    print("[DEBUG] Units spawned")
     
+    print("[DEBUG] UnitFrames initialization completed")
     ns:Print("Unit Frames module loaded")
 end
 
@@ -38,6 +52,131 @@ function UnitFrames:RegisterStyle()
     oUF:RegisterStyle("DamiaUI", function(frame, unit)
         self:SetupFrame(frame, unit)
     end)
+end
+
+-- Spawn all unit frames
+function UnitFrames:SpawnUnits()
+    print("[DEBUG] SpawnUnits called")
+    
+    oUF:SetActiveStyle("DamiaUI")
+    
+    -- Player frame
+    if self.config.player then
+        local player = oUF:Spawn("player", "DamiaUI_PlayerFrame")
+        if player then
+            player:SetPoint(unpack(self.config.player.pos or {"BOTTOMRIGHT", UIParent, "BOTTOM", -150, 260}))
+            self.units.player = player
+            print("[DEBUG] Player frame spawned")
+        end
+    end
+    
+    -- Target frame
+    if self.config.target then
+        local target = oUF:Spawn("target", "DamiaUI_TargetFrame")
+        if target then
+            target:SetPoint(unpack(self.config.target.pos or {"BOTTOMLEFT", UIParent, "BOTTOM", 150, 260}))
+            self.units.target = target
+            print("[DEBUG] Target frame spawned")
+        end
+    end
+    
+    -- Focus frame
+    if self.config.focus then
+        local focus = oUF:Spawn("focus", "DamiaUI_FocusFrame")
+        if focus then
+            focus:SetPoint(unpack(self.config.focus.pos or {"BOTTOMRIGHT", UIParent, "BOTTOM", -150, 320}))
+            self.units.focus = focus
+            print("[DEBUG] Focus frame spawned")
+        end
+    end
+    
+    -- Target of Target
+    local targettarget = oUF:Spawn("targettarget", "DamiaUI_TargetTargetFrame")
+    if targettarget then
+        targettarget:SetPoint("BOTTOMRIGHT", self.units.target or UIParent, "BOTTOMLEFT", -10, 0)
+        self.units.targettarget = targettarget
+        print("[DEBUG] TargetTarget frame spawned")
+    end
+    
+    -- Pet frame
+    local pet = oUF:Spawn("pet", "DamiaUI_PetFrame")
+    if pet then
+        pet:SetPoint("BOTTOMLEFT", self.units.player or UIParent, "BOTTOMRIGHT", 10, 0)
+        self.units.pet = pet
+        print("[DEBUG] Pet frame spawned")
+    end
+    
+    -- Party frames
+    if self.config.showParty then
+        local party = oUF:SpawnHeader(
+            "DamiaUI_PartyHeader", nil, "party",
+            "showParty", true,
+            "showPlayer", false,
+            "showRaid", false,
+            "showSolo", false,
+            "xOffset", 0,
+            "yOffset", -40,
+            "point", "TOP",
+            "oUF-initialConfigFunction", [[
+                self:SetHeight(25)
+                self:SetWidth(150)
+            ]]
+        )
+        if party then
+            party:SetPoint(unpack(self.config.party.pos or {"TOPLEFT", UIParent, "TOPLEFT", 20, -100}))
+            self.units.party = party
+            print("[DEBUG] Party frames spawned")
+        end
+    end
+    
+    -- Raid frames
+    if self.config.showRaid then
+        local raid = oUF:SpawnHeader(
+            "DamiaUI_RaidHeader", nil, "raid",
+            "showRaid", true,
+            "showParty", false,
+            "showPlayer", false,
+            "showSolo", false,
+            "xOffset", 5,
+            "yOffset", -5,
+            "point", "LEFT",
+            "groupFilter", "1,2,3,4,5,6,7,8",
+            "groupingOrder", "1,2,3,4,5,6,7,8",
+            "groupBy", "GROUP",
+            "maxColumns", 8,
+            "unitsPerColumn", 5,
+            "columnSpacing", 5,
+            "columnAnchorPoint", "TOP",
+            "oUF-initialConfigFunction", [[
+                self:SetHeight(25)
+                self:SetWidth(80)
+            ]]
+        )
+        if raid then
+            raid:SetPoint(unpack(self.config.raid.pos or {"TOPLEFT", UIParent, "TOPLEFT", 20, -200}))
+            self.units.raid = raid
+            print("[DEBUG] Raid frames spawned")
+        end
+    end
+    
+    -- Arena frames
+    if self.config.showArena then
+        local arena = {}
+        for i = 1, 5 do
+            arena[i] = oUF:Spawn("arena"..i, "DamiaUI_ArenaFrame"..i)
+            if arena[i] then
+                if i == 1 then
+                    arena[i]:SetPoint(unpack(self.config.arena.pos or {"TOPRIGHT", UIParent, "TOPRIGHT", -100, -200}))
+                else
+                    arena[i]:SetPoint("TOP", arena[i-1], "BOTTOM", 0, -40)
+                end
+            end
+        end
+        self.units.arena = arena
+        print("[DEBUG] Arena frames spawned")
+    end
+    
+    print("[DEBUG] All unit frames spawned successfully")
 end
 
 -- Setup frame based on unit
@@ -59,7 +198,8 @@ function UnitFrames:SetupFrame(frame, unit)
     end
     
     -- Get unit configuration
-    local unitConfig = self.config[unit:gsub("%d+", "")] or {}
+    local unitType = unit:gsub("%d+", "")
+    local unitConfig = self.config[unitType] or {}
     
     -- Set size
     local width = unitConfig.width or 200
@@ -72,6 +212,13 @@ function UnitFrames:SetupFrame(frame, unit)
     health:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
     health:SetHeight(height * 0.85)
     health:SetWidth(width)
+    
+    -- Health colors
+    health.colorClass = true
+    health.colorReaction = true
+    health.colorHealth = true
+    health.frequentUpdates = true
+    health.Smooth = true
     
     -- Health background
     health.bg = health:CreateTexture(nil, "BACKGROUND")
@@ -91,6 +238,11 @@ function UnitFrames:SetupFrame(frame, unit)
     power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -1)
     power:SetPoint("TOPRIGHT", health, "BOTTOMRIGHT", 0, -1)
     power:SetHeight(height * 0.15)
+    
+    -- Power colors
+    power.colorPower = true
+    power.frequentUpdates = true
+    power.Smooth = true
     
     -- Power background
     power.bg = power:CreateTexture(nil, "BACKGROUND")
@@ -116,7 +268,7 @@ function UnitFrames:SetupFrame(frame, unit)
     level:SetPoint("RIGHT", health.value, "LEFT", -2, 0)
     level:SetJustifyH("RIGHT")
     
-    -- Portrait (optional)
+    -- Portrait (optional for player/target)
     if unit == "player" or unit == "target" then
         local portrait = CreateFrame("PlayerModel", nil, frame)
         portrait:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
@@ -130,7 +282,7 @@ function UnitFrames:SetupFrame(frame, unit)
         health:SetWidth(width - height - 1)
     end
     
-    -- Castbar
+    -- Castbar for player, target, focus
     if unit == "player" or unit == "target" or unit == "focus" then
         local castbar = CreateFrame("StatusBar", nil, frame)
         castbar:SetStatusBarTexture(ns.media.texture)
@@ -200,10 +352,18 @@ function UnitFrames:SetupFrame(frame, unit)
         castbar.Shield:SetTexture("Interface\\CastingBar\\UI-CastingBar-Shield")
         castbar.Shield:Hide()
         
+        -- Custom castbar functions
+        castbar.PostCastStart = self.PostCastStart
+        castbar.PostChannelStart = self.PostChannelStart
+        castbar.PostCastStop = self.PostCastStop
+        castbar.PostChannelStop = self.PostChannelStop
+        castbar.PostCastFailed = self.PostCastFailed
+        castbar.PostCastInterrupted = self.PostCastInterrupted
+        
         frame.Castbar = castbar
     end
     
-    -- Auras (Buffs/Debuffs)
+    -- Auras (Buffs/Debuffs) for player/target
     if unit == "player" or unit == "target" then
         -- Buffs
         local buffs = CreateFrame("Frame", nil, frame)
@@ -269,7 +429,7 @@ function UnitFrames:SetupFrame(frame, unit)
     raidIcon:SetSize(16, 16)
     raidIcon:SetPoint("CENTER", frame, "TOP", 0, 0)
     
-    -- Combat Icon
+    -- Combat Icon (player only)
     if unit == "player" then
         local combat = frame:CreateTexture(nil, "OVERLAY")
         combat:SetSize(16, 16)
@@ -287,6 +447,14 @@ function UnitFrames:SetupFrame(frame, unit)
     role:SetSize(12, 12)
     role:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
     
+    -- Range checking for party/raid
+    if unit:match("party") or unit:match("raid") then
+        frame.Range = {
+            insideAlpha = 1,
+            outsideAlpha = 0.5
+        }
+    end
+    
     -- Assign elements to frame
     frame.Health = health
     frame.Power = power
@@ -299,6 +467,39 @@ function UnitFrames:SetupFrame(frame, unit)
     -- Update functions
     self:SetupTags(frame, unit)
     self:SetupEvents(frame, unit)
+end
+
+-- Castbar post functions
+function UnitFrames.PostCastStart(castbar, unit)
+    if castbar.notInterruptible then
+        castbar:SetStatusBarColor(0.7, 0.3, 0.3)
+        if castbar.Shield then
+            castbar.Shield:Show()
+        end
+    else
+        castbar:SetStatusBarColor(0.7, 0.7, 0.3)
+        if castbar.Shield then
+            castbar.Shield:Hide()
+        end
+    end
+end
+
+UnitFrames.PostChannelStart = UnitFrames.PostCastStart
+
+function UnitFrames.PostCastStop(castbar, unit)
+    if castbar.Shield then
+        castbar.Shield:Hide()
+    end
+end
+
+UnitFrames.PostChannelStop = UnitFrames.PostCastStop
+
+function UnitFrames.PostCastFailed(castbar, unit)
+    castbar:SetStatusBarColor(0.8, 0.2, 0.2)
+end
+
+function UnitFrames.PostCastInterrupted(castbar, unit)
+    castbar:SetStatusBarColor(0.8, 0.2, 0.2)
 end
 
 -- Setup oUF tags
@@ -316,65 +517,106 @@ function UnitFrames:SetupTags(frame, unit)
     frame:Tag(frame.Level, "[damiaui:level]")
 end
 
--- Custom tags
-oUF.Tags.Methods["damiaui:health"] = function(unit)
-    local cur = UnitHealth(unit)
-    local max = UnitHealthMax(unit)
+-- Register custom tags
+function UnitFrames:RegisterTags()
+    print("[DEBUG] Registering custom oUF tags")
     
-    if UnitIsDead(unit) then
-        return "Dead"
-    elseif UnitIsGhost(unit) then
-        return "Ghost"
-    elseif not UnitIsConnected(unit) then
-        return "Offline"
-    else
-        return ns:ShortValue(cur) .. " / " .. ns:ShortValue(max)
+    -- Custom health tag
+    oUF.Tags.Methods["damiaui:health"] = function(unit)
+        local cur = UnitHealth(unit)
+        local max = UnitHealthMax(unit)
+        
+        if UnitIsDead(unit) then
+            return "Dead"
+        elseif UnitIsGhost(unit) then
+            return "Ghost"
+        elseif not UnitIsConnected(unit) then
+            return "Offline"
+        else
+            return ns:ShortValue(cur) .. " / " .. ns:ShortValue(max)
+        end
     end
-end
-
-oUF.Tags.Methods["damiaui:power"] = function(unit)
-    local cur = UnitPower(unit)
-    local max = UnitPowerMax(unit)
+    oUF.Tags.Events["damiaui:health"] = "UNIT_HEALTH UNIT_MAXHEALTH UNIT_CONNECTION PLAYER_DEAD PLAYER_ALIVE"
     
-    if max == 0 then
-        return ""
-    else
-        return ns:ShortValue(cur)
+    -- Custom power tag
+    oUF.Tags.Methods["damiaui:power"] = function(unit)
+        local cur = UnitPower(unit)
+        local max = UnitPowerMax(unit)
+        
+        if max == 0 then
+            return ""
+        else
+            return ns:ShortValue(cur)
+        end
     end
-end
-
-oUF.Tags.Methods["damiaui:name"] = function(unit)
-    local name = UnitName(unit)
-    return name and string.sub(name, 1, 20) or ""
-end
-
-oUF.Tags.Methods["damiaui:level"] = function(unit)
-    local level = UnitLevel(unit)
-    local classification = UnitClassification(unit)
-    local color = GetQuestDifficultyColor(level)
+    oUF.Tags.Events["damiaui:power"] = "UNIT_POWER_UPDATE UNIT_MAXPOWER"
     
-    if level == -1 then
-        level = "??"
-        color = {r = 1, g = 0, b = 0}
+    -- Custom name tag
+    oUF.Tags.Methods["damiaui:name"] = function(unit)
+        local name = UnitName(unit)
+        return name and string.sub(name, 1, 20) or ""
     end
+    oUF.Tags.Events["damiaui:name"] = "UNIT_NAME_UPDATE UNIT_CONNECTION"
     
-    local elite = ""
-    if classification == "elite" then
-        elite = "+"
-    elseif classification == "rare" then
-        elite = "R"
-    elseif classification == "rareelite" then
-        elite = "R+"
-    elseif classification == "worldboss" then
-        elite = "B"
+    -- Custom level tag  
+    oUF.Tags.Methods["damiaui:level"] = function(unit)
+        local level = UnitLevel(unit)
+        local classification = UnitClassification(unit)
+        local color = GetQuestDifficultyColor(level) or {r = 1, g = 1, b = 1}
+        
+        if level == -1 then
+            level = "??"
+            color = {r = 1, g = 0, b = 0}
+        end
+        
+        local elite = ""
+        if classification == "elite" then
+            elite = "+"
+        elseif classification == "rare" then
+            elite = "R"
+        elseif classification == "rareelite" then
+            elite = "R+"
+        elseif classification == "worldboss" then
+            elite = "B"
+        end
+        
+        return format("|cff%02x%02x%02x%s%s|r", color.r*255, color.g*255, color.b*255, level, elite)
     end
+    oUF.Tags.Events["damiaui:level"] = "UNIT_LEVEL UNIT_CLASSIFICATION_CHANGED"
     
-    return format("|cff%02x%02x%02x%s%s|r", color.r*255, color.g*255, color.b*255, level, elite)
+    print("[DEBUG] Custom tags registered successfully")
 end
 
 -- Setup events for unit-specific updates
 function UnitFrames:SetupEvents(frame, unit)
     -- Additional unit-specific setup can go here
+end
+
+-- Utility function for shortening values
+function ns:ShortValue(value)
+    if not value then return "" end
+    
+    if value >= 1e6 then
+        return format("%.1fm", value / 1e6)
+    elseif value >= 1e3 then
+        return format("%.1fk", value / 1e3)
+    else
+        return format("%d", value)
+    end
+end
+
+-- Create backdrop helper
+function ns:CreateBackdrop(frame)
+    if not frame then return end
+    
+    frame:SetBackdrop({
+        bgFile = ns.media.texture,
+        edgeFile = ns.media.texture,
+        edgeSize = 1,
+        insets = {left = 1, right = 1, top = 1, bottom = 1}
+    })
+    frame:SetBackdropColor(unpack(ns.colors.backdrop))
+    frame:SetBackdropBorderColor(unpack(ns.colors.border))
 end
 
 -- Register module

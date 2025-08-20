@@ -1,5 +1,5 @@
 --------------------------------------------------------------------
--- DamiaUI DataText - System Stats 
+-- DamiaUI DataText - System Stats
 -- Based on ColdUI by Coldkil, adapted for DamiaUI and WoW 11.2
 --------------------------------------------------------------------
 
@@ -11,7 +11,9 @@ local System = {}
 ns:RegisterModule("DataTextSystem", System)
 
 function System:Initialize()
-    if not ns:GetConfig("datatexts", "showFPS") then
+    -- Get config with defaults
+    local config = ns:GetConfig("datatexts") or {}
+    if not config.showSystem then
         return
     end
     

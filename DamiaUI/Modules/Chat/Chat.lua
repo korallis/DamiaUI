@@ -5,50 +5,64 @@ local addonName, ns = ...
 local Chat = {}
 ns.Chat = Chat
 
--- Configuration
-Chat.config = {}
+-- Module registration
+ns:RegisterModule("Chat", Chat)
 
 -- Initialize module
 function Chat:Initialize()
-    -- Get config
-    self.config = ns.config.chat
+    -- Get config with defaults
+    self.config = ns:GetConfig("chat") or {
+        enabled = true,
+        font = ns.media.font,
+        fontSize = 12,
+        tabFont = ns.media.font,
+        tabFontSize = 11,
+        scale = 1,
+        hideButtons = true,
+        fadeout = true,
+        fadeoutTime = 10,
+        timestamps = true
+    }
     
-    if not self.config or not self.config.enabled then
+    if not self.config.enabled then
         return
     end
     
-    -- Setup chat frames
-    self:SetupChatFrames()
-    
-    -- Setup chat tabs
-    self:SetupChatTabs()
-    
-    -- Setup editbox
-    self:SetupEditBox()
-    
-    -- Setup chat strings
-    self:SetupChatStrings()
-    
-    -- Setup chat bubbles
-    self:SetupChatBubbles()
-    
-    -- Hide buttons if configured
-    if self.config.hideButtons then
-        self:HideChatButtons()
-    end
-    
-    -- Setup fading
-    if self.config.fadeout then
-        self:SetupChatFading()
-    end
-    
-    -- Setup sticky channels
-    self:SetupStickyChannels()
-    
-    -- Setup URL copy
-    self:SetupURLCopy()
-    
-    ns:Print("Chat module loaded")
+    -- Delay initialization to ensure chat frames are ready
+    C_Timer.After(0.5, function()
+        -- Setup chat frames
+        self:SetupChatFrames()
+        
+        -- Setup chat tabs
+        self:SetupChatTabs()
+        
+        -- Setup editbox
+        self:SetupEditBox()
+        
+        -- Setup chat strings
+        self:SetupChatStrings()
+        
+        -- Setup chat bubbles
+        self:SetupChatBubbles()
+        
+        -- Hide buttons if configured
+        if self.config.hideButtons then
+            self:HideChatButtons()
+        end
+        
+        -- Setup fading
+        if self.config.fadeout then
+            self:SetupChatFading()
+        end
+        
+        -- Setup sticky channels
+        self:SetupStickyChannels()
+        
+        -- Setup URL copy
+        self:SetupURLCopy()
+        
+        ns:Print("Chat module loaded")
+    end)
 end
 
 -- Setup chat frames
@@ -71,9 +85,12 @@ function Chat:SetupChatFrames()
             -- Scale
             frame:SetScale(self.config.scale or 1)
             
-            -- Remove background
+            -- Remove background (11.2 compatible)
             if frame.Background then
                 frame.Background:Hide()
+            end
+            if frame.ChatFrameBackground then
+                frame.ChatFrameBackground:Hide()
             end
             
             -- Create custom background
@@ -82,7 +99,14 @@ function Chat:SetupChatFrames()
                 frame.customBg:SetPoint("TOPLEFT", -3, 3)
                 frame.customBg:SetPoint("BOTTOMRIGHT", 3, -3)
                 frame.customBg:SetFrameLevel(frame:GetFrameLevel() - 1)
-                ns:CreateBackdrop(frame.customBg, 0.5)
+                
+                frame.customBg:SetBackdrop({
+                    bgFile = ns.media.texture,
+                    edgeFile = ns.media.texture,
+                    edgeSize = 1,
+                })
+                frame.customBg:SetBackdropColor(0.1, 0.1, 0.1, 0.5)
+                frame.customBg:SetBackdropBorderColor(0, 0, 0, 1)
             end
             
             -- Timestamps
@@ -307,12 +331,16 @@ end
 -- Hide chat buttons
 function Chat:HideChatButtons()
     -- Hide chat menu button
-    ChatFrameMenuButton:Hide()
-    ChatFrameMenuButton:SetScript("OnShow", function(self) self:Hide() end)
+    if ChatFrameMenuButton then
+        ChatFrameMenuButton:Hide()
+        ChatFrameMenuButton:SetScript("OnShow", function(self) self:Hide() end)
+    end
     
-    -- Hide channel button
-    ChatFrameChannelButton:Hide()
-    ChatFrameChannelButton:SetScript("OnShow", function(self) self:Hide() end)
+    -- Hide channel button (11.2 compatible)
+    if ChatFrameChannelButton then
+        ChatFrameChannelButton:Hide()
+        ChatFrameChannelButton:SetScript("OnShow", function(self) self:Hide() end)
+    end
     
     -- Hide voice buttons
     if ChatFrameToggleVoiceDeafenButton then
@@ -326,14 +354,25 @@ function Chat:HideChatButtons()
     end
     
     -- Hide quick join toast button
-    QuickJoinToastButton:Hide()
-    QuickJoinToastButton:SetScript("OnShow", function(self) self:Hide() end)
+    if QuickJoinToastButton then
+        QuickJoinToastButton:Hide()
+        QuickJoinToastButton:SetScript("OnShow", function(self) self:Hide() end)
+    end
     
     -- Hide social button
     local button = _G["ChatFrame1ButtonFrame"]
     if button then
         button:Hide()
         button:SetScript("OnShow", function(self) self:Hide() end)
+    end
+    
+    -- Hide new 11.2 chat buttons
+    for i = 1, NUM_CHAT_WINDOWS do
+        local chatButton = _G["ChatFrame"..i.."ButtonFrame"]
+        if chatButton then
+            chatButton:Hide()
+            chatButton:SetScript("OnShow", function(self) self:Hide() end)
+        end
     end
 end
 
@@ -413,5 +452,5 @@ function Chat:SetupURLCopy()
     end
 end
 
--- Register module
-ns:RegisterModule("Chat", Chat)
+-- Return module
+return Chat

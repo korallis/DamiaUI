@@ -5,8 +5,8 @@ local addonName, ns = ...
 local Minimap = {}
 ns.Minimap = Minimap
 
--- Configuration
-Minimap.config = {}
+-- Module registration
+ns:RegisterModule("Minimap", Minimap)
 
 -- API Compatibility checks
 local hasModernMenuAPI = MenuUtil and MenuUtil.CreateContextMenu
@@ -14,10 +14,18 @@ local hasModernTrackingAPI = C_Minimap and C_Minimap.GetTrackingInfo and C_Minim
 
 -- Initialize module
 function Minimap:Initialize()
-    -- Get config
-    self.config = ns.config.minimap
+    -- Get config with defaults
+    self.config = ns:GetConfig("minimap") or {
+        enabled = true,
+        scale = 1.1,
+        size = 140,
+        showClock = true,
+        showCalendar = true,
+        showTracking = true,
+        pos = {"TOPRIGHT", UIParent, "TOPRIGHT", -10, -10}
+    }
     
-    if not self.config or not self.config.enabled then
+    if not self.config.enabled then
         return
     end
     
@@ -57,15 +65,15 @@ end
 -- Setup minimap
 function Minimap:SetupMinimap()
     -- Use MinimapCluster if it exists, otherwise use Minimap directly
-    local minimapParent = MinimapCluster or Minimap
+    local minimapParent = MinimapCluster or _G.Minimap
     
     -- Set size and scale
     minimapParent:SetScale(self.config.scale or 1.1)
-    Minimap:SetSize(self.config.size or 140, self.config.size or 140)
+    _G.Minimap:SetSize(self.config.size or 140, self.config.size or 140)
     
     -- Position
     minimapParent:ClearAllPoints()
-    if self.config.pos then
+    if self.config.pos and type(self.config.pos) == "table" then
         minimapParent:SetPoint(unpack(self.config.pos))
     else
         minimapParent:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -10, -10)
@@ -87,19 +95,26 @@ function Minimap:SetupMinimap()
     end)
     
     -- Square shape
-    Minimap:SetMaskTexture("Interface\\ChatFrame\\ChatFrameBackground")
+    _G.Minimap:SetMaskTexture("Interface\\ChatFrame\\ChatFrameBackground")
     
     -- Create backdrop
-    if not Minimap.backdrop then
-        Minimap.backdrop = CreateFrame("Frame", nil, Minimap, "BackdropTemplate")
-        Minimap.backdrop:SetPoint("TOPLEFT", -3, 3)
-        Minimap.backdrop:SetPoint("BOTTOMRIGHT", 3, -3)
-        Minimap.backdrop:SetFrameLevel(Minimap:GetFrameLevel() - 1)
-        ns:CreateBackdrop(Minimap.backdrop)
+    if not _G.Minimap.backdrop then
+        _G.Minimap.backdrop = CreateFrame("Frame", nil, _G.Minimap, "BackdropTemplate")
+        _G.Minimap.backdrop:SetPoint("TOPLEFT", -3, 3)
+        _G.Minimap.backdrop:SetPoint("BOTTOMRIGHT", 3, -3)
+        _G.Minimap.backdrop:SetFrameLevel(_G.Minimap:GetFrameLevel() - 1)
+        
+        _G.Minimap.backdrop:SetBackdrop({
+            bgFile = ns.media.texture,
+            edgeFile = ns.media.texture,
+            edgeSize = 1,
+        })
+        _G.Minimap.backdrop:SetBackdropColor(0.1, 0.1, 0.1, 0.8)
+        _G.Minimap.backdrop:SetBackdropBorderColor(0, 0, 0, 1)
     end
     
     -- Blip texture (player and party dots)
-    Minimap:SetBlipTexture("Interface\\Minimap\\ObjectIconsAtlas")
+    _G.Minimap:SetBlipTexture("Interface\\Minimap\\ObjectIconsAtlas")
 end
 
 -- Setup clock
@@ -529,5 +544,38 @@ function Minimap:SetupMouseWheel()
     end)
 end
 
--- Register module
-ns:RegisterModule("Minimap", Minimap)
+-- Disable module and clean up
+function Minimap:Disable()
+    -- Unregister all events
+    if self.zoneText then
+        self.zoneText:UnregisterAllEvents()
+        self.zoneText:SetScript("OnEvent", nil)
+    end
+    
+    if self.coords then
+        self.coords:SetScript("OnUpdate", nil)
+    end
+    
+    if self.clockFrame then
+        self.clockFrame:UnregisterAllEvents()
+        self.clockFrame:SetScript("OnUpdate", nil)
+    end
+    
+    -- Restore hidden elements if needed
+    if MinimapZoomIn then MinimapZoomIn:Show() end
+    if MinimapZoomOut then MinimapZoomOut:Show() end
+    if MiniMapTracking then MiniMapTracking:Show() end
+    if MiniMapWorldMapButton then MiniMapWorldMapButton:Show() end
+    if MinimapNorthTag then MinimapNorthTag:Show() end
+    
+    -- Clear references to prevent memory leaks
+    self.zoneText = nil
+    self.coords = nil
+    self.clockFrame = nil
+    self.config = nil
+    
+    ns:Debug("Minimap module disabled and cleaned up")
+end
+
+-- Return module
+return Minimap

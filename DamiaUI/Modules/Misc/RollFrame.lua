@@ -103,7 +103,7 @@ function RollFrame:SetupRollFrame()
     end
 
     local function CreateRollButton(parent, ntex, ptex, htex, rolltype, tiptext, ...)
-        local f = CreateFrame("Button", nil, parent)
+        local f = CreateFrame("Button", nil, parent, "BackdropTemplate")
         f:SetPoint(...)
         f:SetWidth(28)
         f:SetHeight(28)
@@ -124,7 +124,7 @@ function RollFrame:SetupRollFrame()
     end
 
     local function CreateRollFrame()
-        local frame = CreateFrame("Frame", nil, UIParent)
+        local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
         frame:SetWidth(200)
         frame:SetHeight(22)
         frame:SetBackdrop(backdrop)
@@ -133,7 +133,7 @@ function RollFrame:SetupRollFrame()
         frame:RegisterEvent("CANCEL_LOOT_ROLL")
         frame:Hide()
 
-        local button = CreateFrame("Button", nil, frame)
+        local button = CreateFrame("Button", nil, frame, "BackdropTemplate")
         button:SetPoint("LEFT", -24, 0)
         button:SetWidth(22)
         button:SetHeight(22)
@@ -144,14 +144,14 @@ function RollFrame:SetupRollFrame()
 
         frame.button = button
 
-        local buttonborder = CreateFrame("Frame", nil, button)
+        local buttonborder = CreateFrame("Frame", nil, button, "BackdropTemplate")
         buttonborder:SetWidth(22)
         buttonborder:SetHeight(22)
         buttonborder:SetPoint("CENTER", button, "CENTER")
         buttonborder:SetBackdrop(backdrop)
         buttonborder:SetBackdropColor(1, 1, 1, 0)
         
-        local buttonborder2 = CreateFrame("Frame", nil, button)
+        local buttonborder2 = CreateFrame("Frame", nil, button, "BackdropTemplate")
         buttonborder2:SetWidth(24)
         buttonborder2:SetHeight(24)
         buttonborder2:SetFrameLevel(buttonborder:GetFrameLevel()+1)
@@ -235,7 +235,7 @@ function RollFrame:SetupRollFrame()
     end
 
     -- Create anchor for roll frames
-    local anchor = CreateFrame("Button", "DamiaUI_RollAnchor", UIParent)
+    local anchor = CreateFrame("Button", "DamiaUI_RollAnchor", UIParent, "BackdropTemplate")
     anchor:SetWidth(200) 
     anchor:SetHeight(22)
     anchor:SetBackdrop(backdrop)

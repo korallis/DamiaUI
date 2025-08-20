@@ -1,0 +1,18 @@
+## Interface: 110200
+## Title: |cff00FF7FDamiaDBM|r
+## Notes: DBM style skin for DamiaUI-V2. Updated from ColdDBM for WoW 11.2 compatibility.
+## Author: Damia (Original: Wildbreath, Haleth)
+## Version: 11.2.0
+## RequiredDeps: DBM-Core
+## OptionalDeps: DBM-StatusBarTimers, DamiaUI
+## IconTexture: Interface\Icons\Spell_Nature_WispSplode
+## Category: DamiaUI
+## X-License: MIT
+## X-Website: https://github.com/korallis/DamiaUI
+## X-Curse-Project-ID: DamiaDBM
+
+# Template for DBM bars
+DBT-Template.xml
+
+# Main skin logic
+DamiaDBM.lua

@@ -250,17 +250,23 @@ function DBMSkin:SkinDBMBar(frameName)
         return
     end
     
-    -- Style the main bar
+    -- Style the main bar (ColdDBM-style)
     self:StyleBar(bar, texture, spark)
     
-    -- Style text elements
+    -- Style text elements (ColdDBM-style)
     self:StyleBarText(nameText, timerText, bar)
     
-    -- Style icons
+    -- Style icons (ColdDBM-style)
     self:StyleIcons(icon1, icon2, frame, bar)
     
-    -- Create backdrop
+    -- Create backdrop (WoW 11.2 compatible)
     self:CreateBarBackdrop(bar)
+    
+    -- Prevent DBM from overriding our styling (ColdDBM technique)
+    if nameText then nameText.SetFont = function() end end
+    if texture then texture.SetTexture = function() end end
+    if timerText then timerText.SetFont = function() end end  
+    if spark then spark.SetAlpha = function() end end
     
     -- Mark as skinned to prevent re-skinning
     frame.DamiaUISkinned = true
@@ -335,22 +341,22 @@ function DBMSkin:StyleIcons(icon1, icon2, frame, bar)
     end
 end
 
--- Style a single icon
+-- Style a single icon (ColdDBM-style positioning)
 function DBMSkin:StyleSingleIcon(icon, frame, bar, side)
     if not icon then return end
     
-    -- Set icon texture coordinates
+    -- Set icon texture coordinates (ColdDBM crop)
     icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
     icon:ClearAllPoints()
     
-    -- Position based on side
+    -- Position based on side (exact ColdDBM positioning)
     if side == "left" then
         icon:SetPoint("BOTTOMRIGHT", frame, "BOTTOMLEFT", -self.config.iconSpacing, 6)
     else -- right
         icon:SetPoint("BOTTOMLEFT", frame, "BOTTOMRIGHT", self.config.iconSpacing, 6)
     end
     
-    -- Create backdrop for icon
+    -- Create backdrop for icon (WoW 11.2 compatible)
     self:CreateIconBackdrop(icon, bar)
 end
 

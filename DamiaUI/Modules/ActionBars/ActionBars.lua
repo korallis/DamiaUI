@@ -1,13 +1,26 @@
 -- DamiaUI Action Bars Module
--- Based on ColdBars, updated for WoW 11.2
+-- Rewritten for WoW 11.2 using LibActionButton-1.0
 
 local addonName, ns = ...
 local ActionBars = {}
 ns.ActionBars = ActionBars
 
+-- Get LibActionButton-1.0
+local LAB = LibStub("LibActionButton-1.0-ElvUI")
+if not LAB then
+    print("[DamiaUI] ERROR: LibActionButton-1.0 not found!")
+    return
+end
+
 -- Module configuration
 ActionBars.bars = {}
 ActionBars.buttons = {}
+ActionBars.buttonsLAB = {}
+
+-- ColdUI styling configuration
+local BUTTON_SIZE = 28
+local BUTTON_SPACING = 0  -- Shows as 2px visual gap due to backdrop
+local BACKDROP_PADDING = 4
 
 -- Initialize module
 function ActionBars:Initialize()
@@ -29,331 +42,210 @@ function ActionBars:Initialize()
     
     print("[DEBUG] ActionBars: Config enabled, proceeding with initialization")
     
-    -- Create bars
-    print("[DEBUG] ActionBars: Creating main bar...")
+    -- Initialize bars
     self:CreateMainBar()
-    print("[DEBUG] ActionBars: Creating bar2...")
     self:CreateBar2()
-    print("[DEBUG] ActionBars: Creating bar3...")
     self:CreateBar3()
-    print("[DEBUG] ActionBars: Creating bar4...")
     self:CreateBar4()
-    print("[DEBUG] ActionBars: Creating bar5...")
     self:CreateBar5()
-    print("[DEBUG] ActionBars: Creating pet bar...")
     self:CreatePetBar()
-    print("[DEBUG] ActionBars: Creating stance bar...")
     self:CreateStanceBar()
-    print("[DEBUG] ActionBars: Creating extra bar...")
     self:CreateExtraBar()
     
-    -- Setup paging
-    print("[DEBUG] ActionBars: Setting up paging...")
-    self:SetupPaging()
-    
-    -- Register events
-    print("[DEBUG] ActionBars: Registering events...")
-    self:RegisterEvents()
+    -- Setup visibility and paging
+    self:SetupVisibility()
     
     print("[DEBUG] ActionBars: Initialization completed successfully")
     ns:Print("Action Bars module loaded")
 end
 
--- Create action button with 11.2 compatibility
-function ActionBars:CreateActionButton(id, parent, size)
-    local button = CreateFrame("Button", "DamiaUIActionButton"..id, parent, "SecureActionButtonTemplate")
-    button:SetSize(size or self.config.size, size or self.config.size)
+-- Create LibActionButton-1.0 button
+function ActionBars:CreateLABButton(id, parent, barName)
+    local buttonName = "DamiaUILAB" .. barName .. "Button" .. id
     
-    -- Set as action button
-    button:SetAttribute("type", "action")
-    button:SetAttribute("action", id)
-    button:RegisterForClicks("AnyUp")
+    -- Create the button using LibActionButton
+    local button = LAB:CreateButton(id, buttonName, parent, self.config)
     
-    -- Create visual elements
-    button:SetNormalTexture(ns.media.buttonBackground)
-    local normal = button:GetNormalTexture()
-    normal:SetAllPoints()
-    normal:SetVertexColor(0.3, 0.3, 0.3)
-    
-    -- Icon
-    button.icon = button:CreateTexture(nil, "BACKGROUND")
-    button.icon:SetPoint("TOPLEFT", 2, -2)
-    button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
-    button.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-    
-    -- Cooldown
-    button.cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-    button.cooldown:SetPoint("TOPLEFT", 2, -2)
-    button.cooldown:SetPoint("BOTTOMRIGHT", -2, 2)
-    button.cooldown:SetDrawBling(false)
-    button.cooldown:SetSwipeColor(0, 0, 0, 0.8)
-    
-    -- Count
-    button.count = button:CreateFontString(nil, "OVERLAY")
-    button.count:SetFont(ns.media.font, 12, "OUTLINE")
-    button.count:SetPoint("BOTTOMRIGHT", -2, 2)
-    button.count:SetJustifyH("RIGHT")
-    
-    -- Hotkey
-    button.hotkey = button:CreateFontString(nil, "OVERLAY")
-    button.hotkey:SetFont(ns.media.font, 11, "OUTLINE")
-    button.hotkey:SetPoint("TOPRIGHT", -2, -2)
-    button.hotkey:SetJustifyH("RIGHT")
-    
-    -- Macro name
-    button.name = button:CreateFontString(nil, "OVERLAY")
-    button.name:SetFont(ns.media.font, 10, "OUTLINE")
-    button.name:SetPoint("BOTTOM", 0, 2)
-    button.name:SetJustifyH("CENTER")
-    
-    -- Border for equipped items
-    button.border = button:CreateTexture(nil, "OVERLAY")
-    button.border:SetPoint("TOPLEFT", -2, 2)
-    button.border:SetPoint("BOTTOMRIGHT", 2, -2)
-    button.border:SetTexture(ns.media.buttonBackground)
-    button.border:SetVertexColor(0, 1, 0, 0.3)
-    button.border:Hide()
-    
-    -- Pushed texture
-    button:SetPushedTexture(ns.media.buttonBackground)
-    local pushed = button:GetPushedTexture()
-    pushed:SetAllPoints()
-    pushed:SetVertexColor(0.5, 0.5, 0.5, 0.5)
-    
-    -- Highlight texture
-    button:SetHighlightTexture(ns.media.buttonBackground)
-    local highlight = button:GetHighlightTexture()
-    highlight:SetAllPoints()
-    highlight:SetVertexColor(1, 1, 1, 0.3)
-    
-    -- Checked texture
-    button:SetCheckedTexture(ns.media.buttonBackground)
-    local checked = button:GetCheckedTexture()
-    checked:SetAllPoints()
-    checked:SetVertexColor(1, 1, 1, 0.3)
-    
-    -- Create backdrop
-    ns:CreateBackdrop(button, 0.9)
-    
-    -- Update function
-    button.Update = function(self)
-        local action = self:GetAttribute("action")
-        if not action then return end
-        
-        -- Icon (11.2 compatible)
-        local texture = GetActionTexture(action)
-        if texture then
-            self.icon:SetTexture(texture)
-            self.icon:Show()
-            self:SetAlpha(1)
-        else
-            if ActionBars.config and ActionBars.config.showgrid == 1 then
-                self.icon:Hide()
-                self:SetAlpha(0.4)
-            else
-                self.icon:Hide()
-                self:SetAlpha(0)
-            end
-        end
-        
-        -- Cooldown (11.2 compatible)
-        local cooldownInfo = C_ActionBar.GetActionCooldown and C_ActionBar.GetActionCooldown(action) or nil
-        if cooldownInfo then
-            local start, duration = cooldownInfo.startTime, cooldownInfo.duration
-            if start > 0 and duration > 0 then
-                self.cooldown:SetCooldown(start, duration)
-            else
-                self.cooldown:Clear()
-            end
-        else
-            -- Fallback for older API
-            local start, duration, enable = GetActionCooldown(action)
-            if enable and enable ~= 0 and start > 0 and duration > 0 then
-                self.cooldown:SetCooldown(start, duration)
-            else
-                self.cooldown:Clear()
-            end
-        end
-        
-        -- Count (11.2 compatible)
-        local count = GetActionCount(action)
-        if count and count > 1 then
-            self.count:SetText(count)
-            self.count:Show()
-        else
-            self.count:Hide()
-        end
-        
-        -- Hotkey
-        local key = GetBindingKey("ACTIONBUTTON"..action)
-        if key and self.config and self.config.showkeybind == 1 then
-            self.hotkey:SetText(key)
-            self.hotkey:Show()
-        else
-            self.hotkey:Hide()
-        end
-        
-        -- Macro name
-        local text = GetActionText(action)
-        if text and self.config and self.config.showmacro == 1 then
-            self.name:SetText(text)
-            self.name:Show()
-        else
-            self.name:Hide()
-        end
-        
-        -- Range coloring
-        local inRange = IsActionInRange(action)
-        if inRange == false then
-            self.icon:SetVertexColor(0.8, 0.1, 0.1)
-        else
-            self.icon:SetVertexColor(1, 1, 1)
-        end
-        
-        -- Usability
-        local isUsable, notEnoughMana = IsUsableAction(action)
-        if notEnoughMana then
-            self.icon:SetVertexColor(0.1, 0.3, 1)
-        elseif not isUsable then
-            self.icon:SetDesaturated(true)
-        else
-            self.icon:SetDesaturated(false)
-        end
-        
-        -- Equipped item border
-        if IsEquippedAction(action) then
-            self.border:Show()
-        else
-            self.border:Hide()
-        end
-        
-        -- Active spell highlight
-        if IsCurrentAction(action) or IsAutoRepeatAction(action) then
-            self:SetChecked(true)
-        else
-            self:SetChecked(false)
-        end
+    if not button then
+        print("[DEBUG] Failed to create LAB button: " .. buttonName)
+        return nil
     end
     
-    -- Set config reference
-    button.config = self.config
+    -- Set size
+    local size = self.config.size or BUTTON_SIZE
+    button:SetSize(size, size)
     
-    -- Initial update
-    button:Update()
+    -- Apply ColdUI styling
+    self:StyleLABButton(button)
     
-    -- Store button reference
-    self.buttons[id] = button
+    -- Store reference
+    self.buttonsLAB[buttonName] = button
     
+    print("[DEBUG] Created LAB button: " .. buttonName)
     return button
 end
 
--- Setup events for button updates
-function ActionBars:SetupButtonEvents(button)
-    button:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
-    button:RegisterEvent("PLAYER_ENTERING_WORLD")
-    button:RegisterEvent("ACTIONBAR_UPDATE_STATE")
-    button:RegisterEvent("ACTIONBAR_UPDATE_USABLE")
-    button:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN")
-    button:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
-    button:RegisterEvent("UPDATE_INVENTORY_ALERTS")
-    button:RegisterEvent("PLAYER_TARGET_CHANGED")
-    button:RegisterEvent("SPELL_UPDATE_CHARGES")
-    button:RegisterEvent("UPDATE_BINDINGS")
+-- Apply ColdUI styling to LAB button
+function ActionBars:StyleLABButton(button)
+    if not button then return end
     
-    button:SetScript("OnEvent", function(self, event, ...)
-        if event == "ACTIONBAR_SLOT_CHANGED" then
-            local slot = ...
-            if slot == self:GetAttribute("action") or slot == 0 then
-                self:Update()
-            end
-        else
-            self:Update()
+    -- Hide default textures we'll replace
+    if button.NormalTexture then
+        button.NormalTexture:SetTexture(nil)
+    end
+    
+    -- ColdUI backdrop
+    if not button.bg then
+        button.bg = CreateFrame("Frame", nil, button, "BackdropTemplate")
+        button.bg:SetPoint("TOPLEFT", button, "TOPLEFT", -BACKDROP_PADDING, BACKDROP_PADDING)
+        button.bg:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", BACKDROP_PADDING, -BACKDROP_PADDING)
+        button.bg:SetFrameLevel(button:GetFrameLevel() - 1)
+        button.bg:SetBackdrop({
+            bgFile = ns.media.buttonBackgroundFlat,
+            tile = false,
+            tileSize = 32,
+            edgeSize = 5,
+            insets = {left = 5, right = 5, top = 5.5, bottom = 5},
+        })
+        button.bg:SetBackdropColor(0.2, 0.2, 0.2, 0.6)
+        button.bg:SetBackdropBorderColor(0, 0, 0, 1)
+    end
+    
+    -- Apply ColdUI textures
+    button:SetNormalTexture(ns.media.gloss)
+    local normal = button:GetNormalTexture()
+    if normal then
+        normal:SetAllPoints()
+        normal:SetVertexColor(0.37, 0.3, 0.3, 1)
+    end
+    
+    button:SetPushedTexture(ns.media.pushed)
+    button:SetHighlightTexture(ns.media.hover)
+    button:SetCheckedTexture(ns.media.checked)
+    
+    -- Style icon
+    if button.icon then
+        button.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        button.icon:SetPoint("TOPLEFT", 2, -2)
+        button.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+    end
+    
+    -- Style cooldown
+    if button.cooldown then
+        button.cooldown:SetPoint("TOPLEFT", 1, -1)
+        button.cooldown:SetPoint("BOTTOMRIGHT", -1, 1)
+        button.cooldown:SetDrawBling(false)
+        button.cooldown:SetSwipeColor(0, 0, 0, 0.8)
+    end
+    
+    -- Style count
+    if button.Count then
+        button.Count:SetFont(ns.media.font, 10, "OUTLINE, MONOCHROME")
+        button.Count:SetPoint("BOTTOMRIGHT", -1, 1)
+        button.Count:SetTextColor(1, 1, 1, 1)
+    end
+    
+    -- Style hotkey with ColdUI abbreviations
+    if button.HotKey then
+        button.HotKey:SetFont(ns.media.font, 10, "OUTLINE, MONOCHROME")
+        button.HotKey:SetPoint("TOPRIGHT", -1, -1)
+        button.HotKey:SetTextColor(0.75, 0.75, 0.75, 1)
+        
+        -- Apply hotkey abbreviations
+        local UpdateHotkeys = button.UpdateHotkeys
+        if UpdateHotkeys then
+            hooksecurefunc(button, "UpdateHotkeys", function(self)
+                local hotkey = self.HotKey:GetText()
+                if hotkey then
+                    hotkey = string.gsub(hotkey, 'SHIFT%-', 's')
+                    hotkey = string.gsub(hotkey, 'ALT%-', 'a')
+                    hotkey = string.gsub(hotkey, 'CTRL%-', 'c')
+                    hotkey = string.gsub(hotkey, 'BUTTON', 'm')
+                    hotkey = string.gsub(hotkey, 'MOUSEWHEELUP', 'MU')
+                    hotkey = string.gsub(hotkey, 'MOUSEWHEELDOWN', 'MD')
+                    hotkey = string.gsub(hotkey, 'NUMPAD', 'N')
+                    hotkey = string.gsub(hotkey, 'PAGEUP', 'PU')
+                    hotkey = string.gsub(hotkey, 'PAGEDOWN', 'PD')
+                    hotkey = string.gsub(hotkey, 'SPACE', 'SpB')
+                    hotkey = string.gsub(hotkey, 'INSERT', 'Ins')
+                    hotkey = string.gsub(hotkey, 'HOME', 'Hm')
+                    hotkey = string.gsub(hotkey, 'DELETE', 'Del')
+                    hotkey = string.gsub(hotkey, 'CAPSLOCK', 'CL')
+                    self.HotKey:SetText(hotkey)
+                end
+            end)
         end
-    end)
+    end
     
-    -- OnEnter/OnLeave for tooltips
-    button:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetAction(self:GetAttribute("action"))
-        GameTooltip:Show()
-    end)
+    -- Hide macro name by default (ColdUI style)
+    if button.Name then
+        button.Name:Hide()
+    end
     
-    button:SetScript("OnLeave", function(self)
-        GameTooltip:Hide()
-    end)
-end
-
--- Register module events
-function ActionBars:RegisterEvents()
-    local frame = CreateFrame("Frame")
-    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-    frame:RegisterEvent("ACTIONBAR_SHOWGRID")
-    frame:RegisterEvent("ACTIONBAR_HIDEGRID")
+    -- Style border
+    if button.Border then
+        button.Border:SetTexture(ns.media.gloss)
+        button.Border:SetVertexColor(0, 1, 0, 0.5)
+        button.Border:SetPoint("TOPLEFT", -2, 2)
+        button.Border:SetPoint("BOTTOMRIGHT", 2, -2)
+    end
     
-    frame:SetScript("OnEvent", function(self, event)
-        if event == "ACTIONBAR_SHOWGRID" then
-            ActionBars:ShowGrid()
-        elseif event == "ACTIONBAR_HIDEGRID" then
-            ActionBars:HideGrid()
-        end
-    end)
-end
-
--- Show grid
-function ActionBars:ShowGrid()
-    for _, button in pairs(self.buttons) do
-        if not HasAction(button:GetAttribute("action")) then
-            button:SetAlpha(0.4)
-        end
+    -- Style flash
+    if button.Flash then
+        button.Flash:SetTexture(ns.media.flash)
+        button.Flash:SetAllPoints()
     end
 end
 
--- Hide grid
-function ActionBars:HideGrid()
-    if self.config.showgrid ~= 1 then
-        for _, button in pairs(self.buttons) do
-            if not HasAction(button:GetAttribute("action")) then
-                button:SetAlpha(0)
-            end
-        end
+-- Create bar container
+function ActionBars:CreateBar(name, numButtons, config)
+    local bar = CreateFrame("Frame", "DamiaUI" .. name, UIParent, "SecureHandlerStateTemplate")
+    
+    -- Calculate size
+    local size = config.size or self.config.size or BUTTON_SIZE
+    local spacing = config.spacing or self.config.spacing or BUTTON_SPACING
+    local isVertical = config.orientation == "VERTICAL"
+    
+    if isVertical then
+        bar:SetSize(size, size * numButtons + spacing * (numButtons - 1))
+    else
+        bar:SetSize(size * numButtons + spacing * (numButtons - 1), size)
     end
+    
+    -- Position
+    if config.pos then
+        bar:SetPoint(unpack(config.pos))
+    end
+    
+    -- Scale
+    bar:SetScale(config.scale or self.config.scale or 1)
+    
+    -- Make movable
+    ns:MakeMovable(bar, true)
+    
+    -- Store reference
+    self.bars[name] = bar
+    
+    return bar
 end
 
--- Stub functions for missing methods (to prevent errors)
-function ActionBars:CreateBar2()
-    print("[DEBUG] ActionBars:CreateBar2() stub - method not implemented yet")
+-- Setup visibility conditions
+function ActionBars:SetupVisibility()
+    -- This will be called after all bars are created
+    -- Individual bars handle their own visibility and state drivers
 end
 
-function ActionBars:CreateBar3()
-    print("[DEBUG] ActionBars:CreateBar3() stub - method not implemented yet")
-end
-
-function ActionBars:CreateBar4()
-    print("[DEBUG] ActionBars:CreateBar4() stub - method not implemented yet")
-end
-
-function ActionBars:CreateBar5()
-    print("[DEBUG] ActionBars:CreateBar5() stub - method not implemented yet")
-end
-
-function ActionBars:CreatePetBar()
-    print("[DEBUG] ActionBars:CreatePetBar() stub - method not implemented yet")
-end
-
-function ActionBars:CreateStanceBar()
-    print("[DEBUG] ActionBars:CreateStanceBar() stub - method not implemented yet")
-end
-
+-- Create Extra Action Bar (for special zone abilities)
 function ActionBars:CreateExtraBar()
-    print("[DEBUG] ActionBars:CreateExtraBar() stub - method not implemented yet")
+    -- The ExtraActionBar is handled by Blizzard
+    -- We just need to style it if needed
+    if ExtraActionBarFrame then
+        -- Apply some basic positioning if needed
+        ExtraActionBarFrame:ClearAllPoints()
+        ExtraActionBarFrame:SetPoint("BOTTOM", UIParent, "BOTTOM", 0, 250)
+    end
 end
 
-function ActionBars:SetupPaging()
-    print("[DEBUG] ActionBars:SetupPaging() stub - method not implemented yet")
-end
-
--- Register with main addon
-print("[DEBUG] ActionBars module about to register...")
+-- Register module
 ns:RegisterModule("ActionBars", ActionBars)
-print("[DEBUG] ActionBars module registration completed")
+print("[DEBUG] ActionBars module registered")

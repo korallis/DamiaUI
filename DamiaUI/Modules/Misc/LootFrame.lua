@@ -137,7 +137,7 @@ function LootFrame:SetupLootFrame()
         end
         
         -- Create backdrop
-        local bd = CreateFrame("Frame", nil, bu)
+        local bd = CreateFrame("Frame", nil, bu, "BackdropTemplate")
         bd:SetPoint("TOPLEFT", 26, 0)
         bd:SetPoint("BOTTOMRIGHT", 130, 0)
         bd:SetFrameLevel(bu:GetFrameLevel()-1)

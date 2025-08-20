@@ -40,14 +40,14 @@ function MicroMenu:CreateMicroMenu()
     -- Blizzard micro menu
     ----------------------------------------------------------------------------------------
 
-    local MenuOut = CreateFrame("Frame", "DamiaUI_MenuOut", Minimap)
+    local MenuOut = CreateFrame("Frame", "DamiaUI_MenuOut", Minimap, "BackdropTemplate")
     SetButton(MenuOut)
     Textize(MenuOut, "+ Menu +")
     MenuOut:SetPoint("BOTTOM", Minimap, "TOP", 0, 4)
     MenuOut:SetAlpha(0)
     MenuOut:EnableMouse(true)
 
-    local MenuIn = CreateFrame("Frame", "DamiaUI_MenuIn", Minimap)
+    local MenuIn = CreateFrame("Frame", "DamiaUI_MenuIn", Minimap, "BackdropTemplate")
     SetButton(MenuIn)
     Textize(MenuIn, "- Menu -")
     MenuIn:SetPoint("BOTTOM", Minimap, "TOP", 0, 4)
@@ -55,7 +55,7 @@ function MicroMenu:CreateMicroMenu()
     MenuIn:EnableMouse(true)
 
     -- Help Button
-    local helpBut = CreateFrame("Frame", "DamiaUI_HelpButton", MenuIn)
+    local helpBut = CreateFrame("Frame", "DamiaUI_HelpButton", MenuIn, "BackdropTemplate")
     SetButton(helpBut)
     Textize(helpBut, "Help")
     helpBut:SetPoint("BOTTOM", MenuIn, "TOP", 0, 3)
@@ -67,7 +67,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Adventure Guide Button (replaces Encounter Journal for 11.2)
-    local advBut = CreateFrame("Frame", "DamiaUI_AdventureButton", MenuIn)
+    local advBut = CreateFrame("Frame", "DamiaUI_AdventureButton", MenuIn, "BackdropTemplate")
     SetButton(advBut)
     Textize(advBut, "Adventure Guide")
     advBut:SetPoint("BOTTOM", helpBut, "TOP", 0, 3)
@@ -81,7 +81,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Collections Button (Mounts & Pets)
-    local mountBut = CreateFrame("Frame", "DamiaUI_MountButton", MenuIn)
+    local mountBut = CreateFrame("Frame", "DamiaUI_MountButton", MenuIn, "BackdropTemplate")
     SetButton(mountBut)
     Textize(mountBut, "Collections")
     mountBut:SetPoint("BOTTOM", advBut, "TOP", 0, 3)
@@ -95,7 +95,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Group Finder Button
-    local lfgBut = CreateFrame("Frame", "DamiaUI_LFGButton", MenuIn)
+    local lfgBut = CreateFrame("Frame", "DamiaUI_LFGButton", MenuIn, "BackdropTemplate")
     SetButton(lfgBut)
     Textize(lfgBut, "Group Finder")
     lfgBut:SetPoint("BOTTOM", mountBut, "TOP", 0, 3)
@@ -109,7 +109,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Guild Button
-    local guildBut = CreateFrame("Frame", "DamiaUI_GuildButton", MenuIn)
+    local guildBut = CreateFrame("Frame", "DamiaUI_GuildButton", MenuIn, "BackdropTemplate")
     SetButton(guildBut)
     Textize(guildBut, "Guild")
     guildBut:SetPoint("BOTTOM", lfgBut, "TOP", 0, 3)
@@ -127,7 +127,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- PvP Button
-    local pvpBut = CreateFrame("Frame", "DamiaUI_PVPButton", MenuIn)
+    local pvpBut = CreateFrame("Frame", "DamiaUI_PVPButton", MenuIn, "BackdropTemplate")
     SetButton(pvpBut)
     Textize(pvpBut, "PvP")
     pvpBut:SetPoint("BOTTOM", guildBut, "TOP", 0, 3)
@@ -139,7 +139,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Social Button
-    local socBut = CreateFrame("Frame", "DamiaUI_SocialButton", MenuIn)
+    local socBut = CreateFrame("Frame", "DamiaUI_SocialButton", MenuIn, "BackdropTemplate")
     SetButton(socBut)
     Textize(socBut, "Social")
     socBut:SetPoint("BOTTOM", pvpBut, "TOP", 0, 3)
@@ -151,7 +151,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Quest Log Button
-    local qlogBut = CreateFrame("Frame", "DamiaUI_QuestButton", MenuIn)
+    local qlogBut = CreateFrame("Frame", "DamiaUI_QuestButton", MenuIn, "BackdropTemplate")
     SetButton(qlogBut)
     Textize(qlogBut, "Quest Log")
     qlogBut:SetPoint("BOTTOM", socBut, "TOP", 0, 3)
@@ -165,7 +165,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Achievements Button
-    local achvBut = CreateFrame("Frame", "DamiaUI_AchvButton", MenuIn)
+    local achvBut = CreateFrame("Frame", "DamiaUI_AchvButton", MenuIn, "BackdropTemplate")
     SetButton(achvBut)
     Textize(achvBut, "Achievements")
     achvBut:SetPoint("BOTTOM", qlogBut, "TOP", 0, 3)
@@ -177,7 +177,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Talents Button
-    local talBut = CreateFrame("Frame", "DamiaUI_TalentButton", MenuIn)
+    local talBut = CreateFrame("Frame", "DamiaUI_TalentButton", MenuIn, "BackdropTemplate")
     SetButton(talBut)
     Textize(talBut, "Talents")
     talBut:SetPoint("BOTTOM", achvBut, "TOP", 0, 3)
@@ -191,7 +191,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Spellbook Button
-    local spellBut = CreateFrame("Frame", "DamiaUI_SpellbookButton", MenuIn)
+    local spellBut = CreateFrame("Frame", "DamiaUI_SpellbookButton", MenuIn, "BackdropTemplate")
     SetButton(spellBut)
     Textize(spellBut, "Spellbook")
     spellBut:SetPoint("BOTTOM", talBut, "TOP", 0, 3)
@@ -205,7 +205,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Character Button
-    local charBut = CreateFrame("Frame", "DamiaUI_CharButton", MenuIn)
+    local charBut = CreateFrame("Frame", "DamiaUI_CharButton", MenuIn, "BackdropTemplate")
     SetButton(charBut)
     Textize(charBut, CHARACTER_BUTTON or "Character")
     charBut:SetPoint("BOTTOM", spellBut, "TOP", 0, 3)
@@ -217,7 +217,7 @@ function MicroMenu:CreateMicroMenu()
     end)
 
     -- Store Button (if available)
-    local storeBut = CreateFrame("Frame", "DamiaUI_StoreButton", MenuIn)
+    local storeBut = CreateFrame("Frame", "DamiaUI_StoreButton", MenuIn, "BackdropTemplate")
     SetButton(storeBut)
     Textize(storeBut, "Store")
     storeBut:SetPoint("BOTTOM", charBut, "TOP", 0, 3)

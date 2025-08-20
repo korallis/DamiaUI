@@ -7,15 +7,27 @@ local addonName, ns = ...
 local Nameplates = {}
 ns.Nameplates = Nameplates
 
--- Module configuration
-Nameplates.config = {}
+-- Module registration
+ns:RegisterModule("Nameplates", Nameplates)
 
 -- Initialize module
 function Nameplates:Initialize()
-    -- Get config
-    self.config = ns.config.nameplates
+    -- Get config with defaults
+    self.config = ns:GetConfig("nameplates") or {
+        enabled = true,
+        showSelf = false,
+        showAll = true,
+        showEnemies = true,
+        showFriends = false,
+        stacking = true,
+        minScale = 0.8,
+        maxScale = 1,
+        minAlpha = 0.5,
+        maxAlpha = 1,
+        maxDistance = 40
+    }
     
-    if not self.config or not self.config.enabled then
+    if not self.config.enabled then
         return
     end
     
@@ -31,18 +43,18 @@ end
 -- Setup nameplate CVars (11.2 compatible)
 function Nameplates:SetupCVars()
     -- Modern nameplate settings
-    SetCVar("nameplateShowSelf", 0)
-    SetCVar("nameplateShowAll", 1)
-    SetCVar("nameplateShowEnemies", 1)
-    SetCVar("nameplateShowFriends", 0)
-    SetCVar("nameplateMotion", 1)  -- Stacking nameplates
+    SetCVar("nameplateShowSelf", self.config.showSelf and 1 or 0)
+    SetCVar("nameplateShowAll", self.config.showAll and 1 or 0)
+    SetCVar("nameplateShowEnemies", self.config.showEnemies and 1 or 0)
+    SetCVar("nameplateShowFriends", self.config.showFriends and 1 or 0)
+    SetCVar("nameplateMotion", self.config.stacking and 1 or 0)  -- Stacking nameplates
     SetCVar("nameplateOverlapH", 0.8)
     SetCVar("nameplateOverlapV", 1.1)
-    SetCVar("nameplateMinScale", 0.8)
-    SetCVar("nameplateMaxScale", 1)
-    SetCVar("nameplateMinAlpha", 0.5)
-    SetCVar("nameplateMaxAlpha", 1)
-    SetCVar("nameplateMaxDistance", 40)
+    SetCVar("nameplateMinScale", self.config.minScale)
+    SetCVar("nameplateMaxScale", self.config.maxScale)
+    SetCVar("nameplateMinAlpha", self.config.minAlpha)
+    SetCVar("nameplateMaxAlpha", self.config.maxAlpha)
+    SetCVar("nameplateMaxDistance", self.config.maxDistance)
 end
 
 -- Style a nameplate (ColdUI style)
@@ -133,5 +145,5 @@ function Nameplates:RegisterCallbacks()
     end)
 end
 
--- Register module
-ns:RegisterModule("Nameplates", Nameplates)
+-- Return module
+return Nameplates

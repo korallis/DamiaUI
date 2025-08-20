@@ -1,4 +1,4 @@
-## Interface: 60000
+## Interface: 110200
 ## Author: zork
 ## Title: rLib
 ## Notes: Library for rAddons

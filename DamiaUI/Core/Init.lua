@@ -68,6 +68,36 @@ DamiaUIFrame:RegisterEvent("ADDON_LOADED")
 DamiaUIFrame:RegisterEvent("PLAYER_LOGIN")
 DamiaUIFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
+-- Initialize core systems
+function ns:InitializeCore()
+    print("[DEBUG] InitializeCore called")
+    
+    -- Apply defaults first
+    print("[DEBUG] Calling InitializeDefaults()")
+    ns:InitializeDefaults()
+    print("[DEBUG] InitializeDefaults() completed")
+    
+    -- Initialize profile system after defaults are available
+    print("[DEBUG] Calling InitializeProfiles()")
+    ns:InitializeProfiles()
+    print("[DEBUG] InitializeProfiles() completed")
+    
+    -- Update profile defaults now that configDefaults is available
+    if ns.Profiles and ns.Profiles.initialized then
+        ns.Profiles:UpdateDefaults()
+    end
+    
+    -- Load configuration AFTER defaults are set and profiles initialized
+    print("[DEBUG] Calling LoadConfig()")
+    ns:LoadConfig()
+    print("[DEBUG] LoadConfig() completed")
+    
+    -- Apply configuration to ensure ns.config is populated
+    print("[DEBUG] Calling ApplyConfig()")
+    ns:ApplyConfig()
+    print("[DEBUG] ApplyConfig() completed")
+end
+
 -- Event handler
 DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
     print("[DEBUG] Event received: " .. event)
@@ -76,51 +106,65 @@ DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
         print("[DEBUG] ADDON_LOADED for: " .. tostring(addon))
         if addon == addonName then
             print("[DEBUG] DamiaUI ADDON_LOADED event processing...")
-            -- Initialize saved variables
+            -- Just set up saved variables
             DamiaUIDB = DamiaUIDB or {}
             DamiaUICharDB = DamiaUICharDB or {}
             DamiaUIProfileDB = DamiaUIProfileDB or {}
             print("[DEBUG] Saved variables initialized")
             
-            -- Apply defaults first
-            print("[DEBUG] Calling InitializeDefaults()")
-            ns:InitializeDefaults()
-            print("[DEBUG] InitializeDefaults() completed")
-            
-            -- Initialize profile system after defaults are available
-            print("[DEBUG] Calling InitializeProfiles()")
-            ns:InitializeProfiles()
-            print("[DEBUG] InitializeProfiles() completed")
-            
-            -- Update profile defaults now that configDefaults is available
-            if ns.Profiles and ns.Profiles.initialized then
-                ns.Profiles:UpdateDefaults()
-            end
-            
-            -- Load configuration AFTER defaults are set and profiles initialized
-            print("[DEBUG] Calling LoadConfig()")
-            ns:LoadConfig()
-            print("[DEBUG] LoadConfig() completed")
-            
-            -- Apply configuration to ensure ns.config is populated
-            print("[DEBUG] Calling ApplyConfig()")
-            ns:ApplyConfig()
-            print("[DEBUG] ApplyConfig() completed")
-            
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
-        print("[DEBUG] PLAYER_LOGIN event - starting module initialization")
-        -- Initialize modules AFTER config is loaded
-        ns:InitializeModules()
-        print("[DEBUG] Module initialization completed")
+        print("[DEBUG] PLAYER_LOGIN event - initializing addon")
         
-        -- Setup slash commands
-        print("[DEBUG] Setting up slash commands")
-        ns:SetupSlashCommands()
-        print("[DEBUG] Slash commands setup completed")
+        -- Initialize core systems after game systems are ready
+        print("[DEBUG] Initializing core...")
+        ns:InitializeCore()
+        print("[DEBUG] Core initialization completed")
         
-        print("|cff00FF7FDamiaUI|r v" .. ns.version .. " loaded successfully!")
+        -- Use deferred initialization for UI modifications
+        C_Timer.After(0, function()
+            print("[DEBUG] Starting deferred initialization...")
+            
+            -- Hide Blizzard UI first
+            print("[DEBUG] Disabling Blizzard UI...")
+            ns:DisableBlizzardUI()
+            print("[DEBUG] Blizzard UI disabled")
+            
+            -- Initialize modules after UI is hidden
+            print("[DEBUG] Starting module initialization...")
+            ns:InitializeModules()
+            print("[DEBUG] Module initialization completed")
+            
+            -- Setup slash commands
+            print("[DEBUG] Setting up slash commands")
+            ns:SetupSlashCommands()
+            print("[DEBUG] Slash commands setup completed")
+            
+            -- Initialize configuration GUI (if it exists)
+            print("[DEBUG] Checking for configuration system")
+            if ns.InitializeConfig then
+                print("[DEBUG] Initializing configuration system")
+                ns:InitializeConfig()
+                print("[DEBUG] Configuration system initialized")
+            else
+                print("[DEBUG] Configuration system not yet implemented")
+            end
+            
+            -- Final status report
+            print("|cff00FF7FDamiaUI|r v" .. ns.version .. " loaded successfully!")
+            print("[DEBUG] FINAL STATUS:")
+            local moduleCount = 0
+            for _ in pairs(ns.modules or {}) do
+                moduleCount = moduleCount + 1
+            end
+            print("[DEBUG] Total registered modules: " .. moduleCount)
+            for name, module in pairs(ns.modules or {}) do
+                local status = (module.initialized and "INITIALIZED" or "NOT INITIALIZED") .. ", " .. (module.enabled and "ENABLED" or "DISABLED")
+                print("[DEBUG] Module " .. name .. ": " .. status)
+            end
+            print("[DEBUG] All frames should now be visible. Check your UI!")
+        end)
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
         
@@ -270,6 +314,7 @@ function ns:InitializeDefaults()
             hideErrors = false,
             cooldownText = true,
         },
+        debug = true,  -- Enable debug mode by default
         dbmSkin = {
             enabled = true,
             leftIcon = true,
@@ -488,7 +533,7 @@ function ns:AttemptModuleRecovery(failedModules)
         return
     end
     
-    ns:Debug("Attempting recovery for", #failedModules, "failed modules")
+    ns:Debug("Attempting recovery for " .. #failedModules .. " failed modules")
     local recoveredModules = {}
     
     for _, moduleName in ipairs(failedModules) do
@@ -742,8 +787,7 @@ function ns:SetupSlashCommands()
             print("|cff00FF7FDamiaUI|r: Test mode activated")
             -- Add test functionality here
         elseif cmd == "config" or cmd == "options" then
-            print("|cff00FF7FDamiaUI|r: Configuration panel not yet implemented")
-            -- Open config panel when implemented
+            ns:ShowConfigGUI()
         elseif cmd == "modules" or cmd == "module" then
             ns:HandleModuleCommand(rest)
         elseif cmd == "profiles" or cmd == "profile" then
@@ -754,6 +798,8 @@ function ns:SetupSlashCommands()
             ns:ReloadModules()
         elseif cmd == "dbm" then
             ns:HandleDBMCommand(rest)
+        elseif cmd == "errors" then
+            ns:HandleErrorCommand(rest)
         else
             print("|cff00FF7FDamiaUI|r Commands:")
             print("  /dui config - Open configuration panel")
@@ -762,6 +808,7 @@ function ns:SetupSlashCommands()
             print("  /dui modules [list|enable|disable|toggle|status] [name] - Module management")
             print("  /dui profiles [list|create|set|delete|copy|reset|export|import] [name] - Profile management")
             print("  /dui dbm [status|enable|disable|force|config] - DBM skin management")
+            print("  /dui errors [show|clear|count|recent] - Error log management")
             print("  /dui status - Show addon status")
             print("  /dui reload - Reload all modules")
         end
@@ -971,6 +1018,156 @@ function ns:HandleDBMCommand(args)
     ns.modules.DBMSkin:HandleSlashCommand(args)
 end
 
+-- Handle error display commands
+function ns:HandleErrorCommand(args)
+    local action, count = args:match("^(%S*)%s*(%d*)$")
+    action = action:lower()
+    count = tonumber(count) or 10
+    
+    if not ns.ErrorCapture then
+        ns:Print("|cffFF0000Error:|r Error capture system not initialized")
+        return
+    end
+    
+    if action == "" or action == "show" then
+        -- Show error display frame
+        ns:ShowErrorFrame()
+    elseif action == "clear" then
+        ns.ErrorCapture.ClearErrors()
+    elseif action == "count" then
+        local errorCount = ns.ErrorCapture.GetErrorCount()
+        ns:Print("Total errors captured: " .. errorCount)
+    elseif action == "recent" then
+        local recentErrors = ns.ErrorCapture.GetRecentErrors(count)
+        if #recentErrors == 0 then
+            ns:Print("No recent errors found")
+            return
+        end
+        
+        ns:Print("Recent errors (last " .. #recentErrors .. "):")
+        for i, error in ipairs(recentErrors) do
+            local countText = error.count > 1 and " (x" .. error.count .. ")" or ""
+            print(string.format("  [%s] %s: %s%s", error.timestamp, error.source, error.error, countText))
+        end
+    else
+        ns:Print("Error commands:")
+        ns:Print("  /dui errors show - Show error display frame")
+        ns:Print("  /dui errors clear - Clear all captured errors")
+        ns:Print("  /dui errors count - Show total error count")
+        ns:Print("  /dui errors recent [count] - Show recent errors (default: 10)")
+    end
+end
+
+-- Show error display frame with copyable text
+function ns:ShowErrorFrame()
+    if not ns.ErrorCapture then
+        ns:Print("Error capture system not available")
+        return
+    end
+    
+    local errors = ns.ErrorCapture.GetErrors()
+    if #errors == 0 then
+        ns:Print("No errors to display")
+        return
+    end
+    
+    -- Create or reuse error display frame
+    local frame = _G.DamiaUIErrorFrame
+    if not frame then
+        frame = CreateFrame("Frame", "DamiaUIErrorFrame", UIParent, "BackdropTemplate")
+        frame:SetSize(800, 600)
+        frame:SetPoint("CENTER")
+        frame:SetFrameStrata("DIALOG")
+        frame:SetToplevel(true)
+        frame:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 32,
+            insets = { left = 8, right = 8, top = 8, bottom = 8 }
+        })
+        frame:SetBackdropColor(0, 0, 0, 0.8)
+        frame:EnableMouse(true)
+        frame:SetMovable(true)
+        frame:RegisterForDrag("LeftButton")
+        frame:SetScript("OnDragStart", frame.StartMoving)
+        frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+        
+        -- Title
+        local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        title:SetPoint("TOP", frame, "TOP", 0, -16)
+        title:SetText("DamiaUI Error Log")
+        frame.title = title
+        
+        -- Close button
+        local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+        closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
+        closeButton:SetScript("OnClick", function() frame:Hide() end)
+        
+        -- Scroll frame
+        local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -40)
+        scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -32, 16)
+        frame.scrollFrame = scrollFrame
+        
+        -- Edit box for text
+        local editBox = CreateFrame("EditBox", nil, scrollFrame)
+        editBox:SetMultiLine(true)
+        editBox:SetAutoFocus(false)
+        editBox:SetFontObject(GameFontWhiteSmall)
+        editBox:SetWidth(scrollFrame:GetWidth())
+        editBox:SetScript("OnEscapePressed", function() frame:Hide() end)
+        editBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+        scrollFrame:SetScrollChild(editBox)
+        frame.editBox = editBox
+        
+        -- Copy button
+        local copyButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        copyButton:SetSize(100, 22)
+        copyButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 24)
+        copyButton:SetText("Select All")
+        copyButton:SetScript("OnClick", function()
+            frame.editBox:SetFocus()
+            frame.editBox:HighlightText()
+        end)
+        
+        -- Clear button
+        local clearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        clearButton:SetSize(100, 22)
+        clearButton:SetPoint("RIGHT", copyButton, "LEFT", -8, 0)
+        clearButton:SetText("Clear Errors")
+        clearButton:SetScript("OnClick", function()
+            ns.ErrorCapture.ClearErrors()
+            frame:Hide()
+            ns:Print("Error log cleared")
+        end)
+    end
+    
+    -- Build error text
+    local errorText = "DamiaUI Error Log - " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
+    errorText = errorText .. "==========================================\n\n"
+    
+    for i, error in ipairs(errors) do
+        local countText = error.count > 1 and " (occurred " .. error.count .. " times)" or ""
+        errorText = errorText .. string.format("[%s] %s%s\n", error.timestamp, error.source, countText)
+        errorText = errorText .. "Error: " .. error.error .. "\n"
+        if error.stack and error.stack ~= "" then
+            errorText = errorText .. "Stack: " .. error.stack .. "\n"
+        end
+        errorText = errorText .. "\n"
+    end
+    
+    -- Update the edit box
+    frame.editBox:SetText(errorText)
+    frame.editBox:SetCursorPosition(0)
+    
+    -- Show frame
+    frame:Show()
+    
+    ns:Print("Error display frame opened. You can copy the text to share with developers.")
+end
+
 -- List all registered modules
 function ns:ListModules()
     local moduleList = {}
@@ -1115,6 +1312,13 @@ function ns:RegisterModule(name, module)
     ns.modules[name] = module
     -- Don't initialize here, wait for PLAYER_LOGIN
     print("[DEBUG] Module " .. name .. " registered successfully")
+end
+
+-- Show configuration GUI (stub for now)
+function ns:ShowConfigGUI()
+    ns:Print("Configuration GUI not yet implemented")
+    ns:Print("Use /dui modules to manage modules")
+    ns:Print("Use /dui profiles to manage profiles")
 end
 
 -- Utility functions

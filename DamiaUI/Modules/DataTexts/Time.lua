@@ -3,15 +3,29 @@
 
 local addonName, ns = ...
 
--- Create data text
-local TimeDataText = CreateFrame("Frame", "DamiaUITimeDataText", UIParent)
-TimeDataText:SetSize(60, 20)
-TimeDataText:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -5, 5)
+local Time = {}
+ns:RegisterModule("DataTextTime", Time)
 
--- Create text
-TimeDataText.text = TimeDataText:CreateFontString(nil, "OVERLAY")
-TimeDataText.text:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
-TimeDataText.text:SetPoint("CENTER")
+function Time:Initialize()
+    -- Get config with defaults
+    local config = ns:GetConfig("datatexts") or {}
+    if not config.showTime then
+        return
+    end
+    
+    self:CreateTimeFrame()
+end
+
+function Time:CreateTimeFrame()
+    -- Create data text
+    local TimeDataText = CreateFrame("Frame", "DamiaUITimeDataText", UIParent)
+    TimeDataText:SetSize(60, 20)
+    TimeDataText:SetPoint("BOTTOMRIGHT", UIParent, "BOTTOMRIGHT", -5, 5)
+
+    -- Create text
+    TimeDataText.text = TimeDataText:CreateFontString(nil, "OVERLAY")
+    TimeDataText.text:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    TimeDataText.text:SetPoint("CENTER")
 
 -- Update function
 local function UpdateTime()
@@ -93,5 +107,10 @@ TimeDataText:SetScript("OnUpdate", function(self, delta)
     end
 end)
 
--- Initial update
-UpdateTime()
+    -- Initial update
+    UpdateTime()
+    
+    self.frame = TimeDataText
+end
+
+return Time

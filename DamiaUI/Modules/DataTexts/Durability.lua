@@ -3,15 +3,29 @@
 
 local addonName, ns = ...
 
--- Create data text
-local DurabilityDataText = CreateFrame("Frame", "DamiaUIDurabilityDataText", UIParent)
-DurabilityDataText:SetSize(60, 20)
-DurabilityDataText:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 5, 5)
+local Durability = {}
+ns:RegisterModule("DataTextDurability", Durability)
 
--- Create text
-DurabilityDataText.text = DurabilityDataText:CreateFontString(nil, "OVERLAY")
-DurabilityDataText.text:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
-DurabilityDataText.text:SetPoint("CENTER")
+function Durability:Initialize()
+    -- Get config with defaults
+    local config = ns:GetConfig("datatexts") or {}
+    if not config.showDurability then
+        return
+    end
+    
+    self:CreateDurabilityFrame()
+end
+
+function Durability:CreateDurabilityFrame()
+    -- Create data text
+    local DurabilityDataText = CreateFrame("Frame", "DamiaUIDurabilityDataText", UIParent)
+    DurabilityDataText:SetSize(60, 20)
+    DurabilityDataText:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 5, 5)
+
+    -- Create text
+    DurabilityDataText.text = DurabilityDataText:CreateFontString(nil, "OVERLAY")
+    DurabilityDataText.text:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    DurabilityDataText.text:SetPoint("CENTER")
 
 -- Slot IDs for equipment
 local slots = {
@@ -123,5 +137,10 @@ DurabilityDataText:SetScript("OnEvent", function(self, event)
     UpdateDurability()
 end)
 
--- Initial update
-UpdateDurability()
+    -- Initial update
+    UpdateDurability()
+    
+    self.frame = DurabilityDataText
+end
+
+return Durability

@@ -38,13 +38,15 @@ function BlizzReskin:SetupChatBubbles()
             end
         end
         
-        frame:SetBackdrop({
-            bgFile = ns.media.texture,
-            edgeFile = ns.media.texture,
-            edgeSize = offset,
-        })
-        frame:SetBackdropBorderColor(.6, .6, .6)
-        frame:SetBackdropColor(.1, .1, .1, .8)
+        if frame.SetBackdrop then
+            frame:SetBackdrop({
+                bgFile = ns.media.texture,
+                edgeFile = ns.media.texture,
+                edgeSize = offset,
+            })
+            frame:SetBackdropBorderColor(.6, .6, .6)
+            frame:SetBackdropColor(.1, .1, .1, .8)
+        end
         
         table.insert(bubbles, frame)
     end
@@ -159,7 +161,7 @@ function BlizzReskin:SetupMirrorTimers()
                 edgeSize = 1,
             }
             
-            local border = CreateFrame("Frame", nil, frame)
+            local border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
             border:SetPoint("TOPLEFT", frame, -1, 1)
             border:SetPoint("BOTTOMRIGHT", frame, 1, -1)
             border:SetBackdrop(backdrop)

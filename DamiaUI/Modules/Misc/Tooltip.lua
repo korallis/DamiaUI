@@ -170,7 +170,7 @@ function Tooltip:SetupTooltips()
         healthBar:SetPoint("BOTTOMRIGHT", healthBar:GetParent(), "TOPRIGHT", -1, 3)
         healthBar:SetStatusBarTexture(_TEXTURE)
 
-        local healthBarBG = CreateFrame("Frame", "DamiaUI_StatusBarBG", healthBar)
+        local healthBarBG = CreateFrame("Frame", "DamiaUI_StatusBarBG", healthBar, "BackdropTemplate")
         healthBarBG:SetFrameLevel(healthBar:GetFrameLevel() - 1)
         healthBarBG:SetPoint("TOPLEFT", -1, 1)
         healthBarBG:SetPoint("BOTTOMRIGHT", 1, -1)

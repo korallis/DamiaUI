@@ -5,9 +5,15 @@ local addonName, ns = ...
 local ActionBars = ns.ActionBars
 
 function ActionBars:CreateMainBar()
+    print("[DEBUG] CreateMainBar() called")
+    
     -- Create bar frame
     local bar = CreateFrame("Frame", "DamiaUIMainBar", UIParent, "SecureHandlerStateTemplate")
-    bar:SetSize(self.config.size * 12 + self.config.spacing * 11, self.config.size)
+    local size = self.config.size or 28
+    local spacing = self.config.spacing or 0
+    bar:SetSize(size * 12 + spacing * 11, size)
+    
+    print("[DEBUG] Main bar created with size: " .. (size * 12 + spacing * 11) .. "x" .. size)
     
     -- Position
     if self.config.mainbar and self.config.mainbar.pos then
@@ -20,22 +26,32 @@ function ActionBars:CreateMainBar()
     bar:SetScale(self.config.scale or 1)
     
     -- Create buttons
+    print("[DEBUG] Creating 12 action buttons for main bar")
     for i = 1, 12 do
-        local button = self:CreateActionButton(i, bar, self.config.size)
+        local button = self:CreateActionButton(i, bar, size)
+        print("[DEBUG] Button " .. i .. " created: " .. tostring(button ~= nil))
         
         -- Position buttons
         if i == 1 then
             button:SetPoint("LEFT", bar, "LEFT", 0, 0)
         else
-            button:SetPoint("LEFT", self.buttons[i-1], "RIGHT", self.config.spacing, 0)
+            button:SetPoint("LEFT", self.buttons[i-1], "RIGHT", spacing, 0)
         end
         
         -- Setup events
-        self:SetupButtonEvents(button)
+        if self.SetupButtonEvents then
+            self:SetupButtonEvents(button)
+        end
         
         -- Setup paging
         button:SetAttribute("action", i)
+        
+        -- Force button visible
+        button:Show()
+        button:SetAlpha(1)
     end
+    
+    print("[DEBUG] All 12 buttons created and positioned")
     
     -- Paging for main bar
     bar:SetAttribute("_onstate-page", [[
@@ -145,8 +161,17 @@ function ActionBars:CreateMainBar()
     -- Make movable when not in combat
     ns:MakeMovable(bar, true)
     
+    -- Force bar visible
+    bar:Show()
+    bar:SetAlpha(1)
+    
     -- Store bar reference
+    if not self.bars then
+        self.bars = {}
+    end
     self.bars.mainbar = bar
+    
+    print("[DEBUG] Main bar completed and stored, visible: " .. tostring(bar:IsVisible()))
     
     return bar
 end

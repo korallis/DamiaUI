@@ -1,0 +1,40 @@
+package-as: DamiaUI
+
+externals:
+  Libraries/LibStub:
+    url: https://repos.wowace.com/wow/libstub/trunk
+    tag: latest
+  Libraries/CallbackHandler-1.0:
+    url: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+    tag: latest
+  Libraries/Ace3:
+    url: https://repos.wowace.com/wow/ace3/trunk
+    tag: latest
+  Libraries/LibActionButton-1.0:
+    url: https://repos.wowace.com/wow/libactionbutton-1-0/trunk
+    tag: latest
+  Libraries/LibSharedMedia-3.0:
+    url: https://repos.wowace.com/wow/libsharedmedia-3-0/trunk
+    tag: latest
+  Libraries/oUF:
+    url: https://github.com/oUF-wow/oUF.git
+    tag: latest
+
+ignore:
+  - .git
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - LICENSE
+  - "*.md"
+  - .vscode
+  - .idea
+  - "*.bak"
+  - "*.tmp"
+  - .DS_Store
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+license-output: LICENSE
