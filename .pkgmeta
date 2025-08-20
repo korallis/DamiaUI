@@ -2,6 +2,9 @@ package-as: DamiaUI
 
 enable-nolib-creation: no
 
+move-folders:
+  DamiaUI: DamiaUI
+
 ignore:
   - .github
   - .gitignore
@@ -13,3 +16,4 @@ ignore:
   - "Thumbs.db"
   - ".git"
   - ".gitmodules"
+  - ".release"
