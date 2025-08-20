@@ -14,4 +14,3 @@ ignore:
   - ".git"
   - ".gitmodules"
   - ".release"
-  - DamiaUI
