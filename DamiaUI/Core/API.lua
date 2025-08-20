@@ -251,5 +251,128 @@ if not GetRuneCooldown then
     end
 end
 
+-- Fix for GetGuildInfo (moved to C_GuildInfo in 11.x)
+if not GetGuildInfo then
+    GetGuildInfo = function(unit)
+        if C_GuildInfo and C_GuildInfo.GetGuildInfo then
+            local info = C_GuildInfo.GetGuildInfo(unit)
+            if info then
+                return info.guildName, info.guildRankName, info.guildRankIndex, info.realm
+            end
+        end
+        return nil
+    end
+end
+
+-- Fix for UnitAura/UnitBuff/UnitDebuff (deprecated in 10.2.6, removed in 11.x)
+if not UnitAura and C_UnitAuras then
+    UnitAura = function(unit, index, filter)
+        local auraData = C_UnitAuras.GetAuraDataByIndex(unit, index, filter)
+        if auraData then
+            return auraData.name, auraData.icon, auraData.applications, auraData.dispelType,
+                   auraData.duration, auraData.expirationTime, auraData.sourceUnit,
+                   auraData.isStealable, auraData.nameplateShowPersonal, auraData.spellId,
+                   auraData.canApplyAura, auraData.isBossDebuff, auraData.castByPlayer,
+                   auraData.nameplateShowAll, auraData.timeMod
+        end
+        return nil
+    end
+end
+
+if not UnitBuff and C_UnitAuras then
+    UnitBuff = function(unit, index, filter)
+        local auraData = C_UnitAuras.GetBuffDataByIndex(unit, index, filter)
+        if auraData then
+            return auraData.name, auraData.icon, auraData.applications, auraData.dispelType,
+                   auraData.duration, auraData.expirationTime, auraData.sourceUnit,
+                   auraData.isStealable, auraData.nameplateShowPersonal, auraData.spellId,
+                   auraData.canApplyAura, auraData.isBossDebuff, auraData.castByPlayer,
+                   auraData.nameplateShowAll, auraData.timeMod
+        end
+        return nil
+    end
+end
+
+if not UnitDebuff and C_UnitAuras then
+    UnitDebuff = function(unit, index, filter)
+        local auraData = C_UnitAuras.GetDebuffDataByIndex(unit, index, filter)
+        if auraData then
+            return auraData.name, auraData.icon, auraData.applications, auraData.dispelType,
+                   auraData.duration, auraData.expirationTime, auraData.sourceUnit,
+                   auraData.isStealable, auraData.nameplateShowPersonal, auraData.spellId,
+                   auraData.canApplyAura, auraData.isBossDebuff, auraData.castByPlayer,
+                   auraData.nameplateShowAll, auraData.timeMod
+        end
+        return nil
+    end
+end
+
+-- Fix for GetRealmName (might be deprecated in 11.x)
+if not GetRealmName then
+    GetRealmName = function()
+        local realmName = GetNormalizedRealmName and GetNormalizedRealmName() or ""
+        if realmName == "" and C_RealmInfo then
+            local info = C_RealmInfo.GetCurrentRealmInfo()
+            if info then
+                realmName = info.realmName
+            end
+        end
+        return realmName
+    end
+end
+
+-- Fix for GetInventoryItemDurability (moved to C_Item in 11.x) 
+if not GetInventoryItemDurability and C_Item then
+    GetInventoryItemDurability = function(slot)
+        local current, maximum = C_Item.GetItemInventoryDurability(slot)
+        return current, maximum
+    end
+end
+
+-- Fix for GetItemQualityColor (moved to C_Item in 11.x)
+if not GetItemQualityColor and C_Item then
+    GetItemQualityColor = function(quality)
+        local color = C_Item.GetItemQualityColor(quality) or ITEM_QUALITY_COLORS[quality]
+        if color then
+            return color.r, color.g, color.b, color.hex
+        end
+        return 1, 1, 1, "|cffffffff"
+    end
+end
+
+-- Fix for deprecated dropdown functions (use LibUIDropDownMenu or new Menu API)
+if not EasyMenu then
+    EasyMenu = function(menuList, menuFrame, anchor, x, y, displayMode, autoHideDelay)
+        -- Fallback to using the new Menu API if available
+        if Menu then
+            Menu.ModifyMenu(menuFrame:GetName(), function(dropdown, rootDescription)
+                for _, item in ipairs(menuList) do
+                    if item.text then
+                        local button = rootDescription:CreateButton(item.text)
+                        if item.func then
+                            button:SetAction(item.func)
+                        end
+                    end
+                end
+            end)
+        else
+            -- Basic fallback - create a simple context menu
+            print("EasyMenu is deprecated. Please update to use the new Menu API.")
+        end
+    end
+end
+
+-- Fix for ToggleDropDownMenu (deprecated, use new Menu API)
+if not ToggleDropDownMenu then
+    ToggleDropDownMenu = function(level, value, dropDownFrame, anchorName, xOffset, yOffset)
+        -- Basic fallback
+        if dropDownFrame and dropDownFrame.Toggle then
+            dropDownFrame:Toggle()
+        else
+            print("ToggleDropDownMenu is deprecated. Please update to use the new Menu API.")
+        end
+    end
+end
+
 -- Print debug info
 ns:Debug("API Compatibility Layer loaded for WoW 11.2")
