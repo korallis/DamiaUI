@@ -1,13 +1,7 @@
-# Core files and folders
-!/README.md
-!/DamiaUI/
-!/DamiaUI-Plan/
-!/.gitignore
-!/LICENSE
-
 # OS Files
 .DS_Store
 Thumbs.db
+*.log
 
 # IDE Files
 .vscode/
@@ -20,21 +14,43 @@ Thumbs.db
 *.swp
 *~
 
-# Logs
-*.log
-
 # Local development files
 .env
 .env.local
 
-# Documentation folders (not for public repo)
-/wow-documentation/
-/project-documentation/
-/compass_artifact_wf-f8a9cc17-7f2e-4b78-b11d-cdb3bdf9fa5b_text_markdown.md
+# Development and documentation folders
+DamiaUI-Plan/
+DamiaUI-V2/
+DamiaUI_backup_*/
+GW2_UI/
+ColdUI*/
+wow-documentation/
+project-documentation/
+compass_artifact_wf-f8a9cc17-7f2e-4b78-b11d-cdb3bdf9fa5b_text_markdown.md
 
-# Scripts
+# Legacy files and migrations
+COLDUI_TO_DAMIAUI_MIGRATION_PLAN.md
+DAMIAUI_*.md
+ColdDBM/
+CHANGES.txt
+USE_WOW_EXPERT.md
+WOW_ADDON_EXPERT*.md
+issues.*
+
+# External libraries (will be fetched by packager)
+CallbackHandler-1.0/
+LibStub/
+LibActionButton-1.0.lua
+LibActionButton-1.0.toc
+LibButtonGlow-1.0/
+libraries/
+
+# Scripts and build artifacts
 *.sh
-
-# Build artifacts
+*.bat
 *.zip
 *.tar.gz
+
+# Packager files (kept in repo for CI)
+!.pkgmeta
+!.github/

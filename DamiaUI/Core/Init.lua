@@ -9,6 +9,13 @@ ns.name = addonName
 ns.modules = {}
 ns.config = {}
 
+-- Embed oUF properly (remove from global namespace)
+local oUF = _G.oUF
+if oUF then
+    ns.oUF = oUF
+    _G.oUF = nil -- Hide from global namespace to prevent conflicts
+end
+
 -- Initialize media paths BEFORE they're used anywhere (ColdUI textures)
 ns.media = {
     font = "Interface\\AddOns\\" .. addonName .. "\\Media\\Fonts\\homespun.ttf",
@@ -69,11 +76,20 @@ DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
             -- Initialize saved variables
             DamiaUIDB = DamiaUIDB or {}
             DamiaUICharDB = DamiaUICharDB or {}
+            DamiaUIProfileDB = DamiaUIProfileDB or {}
             
-            -- Apply defaults
+            -- Apply defaults first
             ns:InitializeDefaults()
             
-            -- Load configuration AFTER defaults are set
+            -- Initialize profile system after defaults are available
+            ns:InitializeProfiles()
+            
+            -- Update profile defaults now that configDefaults is available
+            if ns.Profiles and ns.Profiles.initialized then
+                ns.Profiles:UpdateDefaults()
+            end
+            
+            -- Load configuration AFTER defaults are set and profiles initialized
             ns:LoadConfig()
             
             -- Apply configuration to ensure ns.config is populated
@@ -237,6 +253,19 @@ function ns:InitializeDefaults()
             enhancedTooltips = true,
             hideErrors = false,
             cooldownText = true,
+        },
+        dbmSkin = {
+            enabled = true,
+            leftIcon = true,
+            rightIcon = false,
+            barHeight = 8,
+            iconSize = 22,
+            iconSpacing = 4,
+            fontOutline = "OUTLINEMONOCHROME",
+            fontSize = 10,
+            timerFontSize = 10,
+            nameJustifyH = "LEFT",
+            timerJustifyH = "RIGHT",
         }
     }
     
@@ -260,7 +289,7 @@ function ns:ApplyConfig()
     end
     
     -- Ensure all config categories exist
-    local categories = {"actionbar", "unitframes", "minimap", "chat", "nameplates", "datatexts", "misc"}
+    local categories = {"actionbar", "unitframes", "minimap", "chat", "nameplates", "datatexts", "misc", "dbmSkin"}
     for _, category in ipairs(categories) do
         if not ns.config[category] then
             ns.config[category] = {}
@@ -268,22 +297,383 @@ function ns:ApplyConfig()
     end
 end
 
--- Initialize modules
+-- Initialize modules with comprehensive error recovery
 function ns:InitializeModules()
     -- Ensure config is loaded
     if not ns.config then
         ns:ApplyConfig()
     end
     
-    -- Initialize each registered module
-    for name, module in pairs(ns.modules) do
-        if module.Initialize then
-            local success, err = pcall(module.Initialize, module)
-            if not success then
-                print("|cffFF0000DamiaUI Error initializing " .. name .. ":|r " .. err)
+    local initOrder = {"ActionBars", "UnitFrames", "Minimap"} -- Priority order
+    local initializedModules = {}
+    local failedModules = {}
+    
+    -- Initialize priority modules first
+    for _, moduleName in ipairs(initOrder) do
+        local module = ns.modules[moduleName]
+        if module then
+            initializedModules[moduleName] = ns:InitializeSingleModule(moduleName, module)
+            if not initializedModules[moduleName] then
+                failedModules[#failedModules + 1] = moduleName
             end
         end
     end
+    
+    -- Initialize remaining modules
+    for name, module in pairs(ns.modules) do
+        if not initializedModules[name] then
+            initializedModules[name] = ns:InitializeSingleModule(name, module)
+            if not initializedModules[name] then
+                failedModules[#failedModules + 1] = name
+            end
+        end
+    end
+    
+    -- Report initialization results
+    local successCount = 0
+    for _, success in pairs(initializedModules) do
+        if success then successCount = successCount + 1 end
+    end
+    
+    ns:Print("Initialized " .. successCount .. " modules successfully")
+    
+    if #failedModules > 0 then
+        ns:Print("|cffFFAA00Warning:|r " .. #failedModules .. " modules failed to initialize: " .. table.concat(failedModules, ", "))
+        
+        -- Attempt recovery for critical modules
+        C_Timer.After(2, function()
+            ns:AttemptModuleRecovery(failedModules)
+        end)
+    end
+end
+
+-- Initialize a single module with detailed error handling
+function ns:InitializeSingleModule(name, module)
+    if not module then
+        ns:Debug("Module", name, "is nil")
+        return false
+    end
+    
+    -- Check if module is disabled in config
+    if ns.config.modules and ns.config.modules[name] == false then
+        ns:Debug("Module", name, "is disabled in config")
+        module.initialized = false
+        module.enabled = false
+        return true -- Not an error, just disabled
+    end
+    
+    -- Validate module structure
+    if type(module) ~= "table" then
+        ns:Print("|cffFF0000Error:|r Module", name, "is not a valid table")
+        return false
+    end
+    
+    -- Pre-initialization checks
+    if module.PreInitialize then
+        local preSuccess, preErr = pcall(module.PreInitialize, module)
+        if not preSuccess then
+            ns:Print("|cffFF0000Error:|r Module", name, "pre-initialization failed:", preErr)
+            return false
+        end
+    end
+    
+    -- Main initialization with timeout protection
+    local initSuccess = false
+    local initError = nil
+    
+    local function initFunction()
+        if module.Initialize then
+            module:Initialize()
+            module.initialized = true
+            module.enabled = true
+            initSuccess = true
+        else
+            ns:Debug("Module", name, "has no Initialize function")
+            module.initialized = true
+            module.enabled = true
+            initSuccess = true
+        end
+    end
+    
+    -- Protected call with error capture
+    local success, err = pcall(initFunction)
+    
+    if success and initSuccess then
+        ns:Debug("Module", name, "initialized successfully")
+        
+        -- Post-initialization validation
+        if module.PostInitialize then
+            local postSuccess, postErr = pcall(module.PostInitialize, module)
+            if not postSuccess then
+                ns:Print("|cffFFAA00Warning:|r Module", name, "post-initialization failed:", postErr)
+                -- Don't fail the module for post-init errors
+            end
+        end
+        
+        return true
+    else
+        initError = err or "Unknown initialization error"
+        ns:Print("|cffFF0000Error initializing " .. name .. ":|r " .. initError)
+        
+        -- Attempt graceful degradation
+        if module.Disable then
+            local disableSuccess, disableErr = pcall(module.Disable, module)
+            if not disableSuccess then
+                ns:Print("|cffFF0000Error disabling failed " .. name .. ":|r " .. (disableErr or "unknown error"))
+            end
+        end
+        
+        -- Mark module as failed
+        module.initialized = false
+        module.enabled = false
+        module.lastError = initError
+        module.lastErrorTime = GetTime()
+        
+        return false
+    end
+end
+
+-- Attempt to recover failed modules
+function ns:AttemptModuleRecovery(failedModules)
+    if not failedModules or #failedModules == 0 then
+        return
+    end
+    
+    ns:Debug("Attempting recovery for", #failedModules, "failed modules")
+    local recoveredModules = {}
+    
+    for _, moduleName in ipairs(failedModules) do
+        local module = ns.modules[moduleName]
+        if module and not module.initialized then
+            -- Wait a bit longer for dependencies
+            if ns:InitializeSingleModule(moduleName, module) then
+                recoveredModules[#recoveredModules + 1] = moduleName
+                ns:Print("|cff00FF00Recovered module:|r " .. moduleName)
+            else
+                -- Mark as permanently failed for this session
+                module.recoveryAttempted = true
+            end
+        end
+    end
+    
+    if #recoveredModules > 0 then
+        ns:Print("Successfully recovered " .. #recoveredModules .. " modules")
+    end
+end
+
+-- Enable a specific module with comprehensive error handling
+function ns:EnableModule(name)
+    local module = ns.modules[name]
+    if not module then
+        ns:Print("|cffFF0000Error:|r Module '" .. tostring(name) .. "' not found")
+        return false
+    end
+    
+    -- Check if module is already enabled
+    if module.enabled then
+        ns:Debug("Module", name, "is already enabled")
+        return true
+    end
+    
+    -- Validate module state
+    if not module.initialized then
+        ns:Print("|cffFFAA00Warning:|r Attempting to initialize module '" .. name .. "' before enabling")
+        if not ns:InitializeSingleModule(name, module) then
+            ns:Print("|cffFF0000Error:|r Failed to initialize module '" .. name .. "' for enabling")
+            return false
+        end
+    end
+    
+    -- Pre-enable checks
+    if module.PreEnable then
+        local preSuccess, preErr = pcall(module.PreEnable, module)
+        if not preSuccess then
+            ns:Print("|cffFF0000Error:|r Module '" .. name .. "' pre-enable failed:", preErr)
+            return false
+        end
+    end
+    
+    -- Attempt to enable the module
+    if module.Enable then
+        local success, err = pcall(module.Enable, module)
+        if not success then
+            ns:Print("|cffFF0000Failed to enable module '" .. name .. "':|r " .. (err or "unknown error"))
+            
+            -- Store error information
+            module.lastError = err
+            module.lastErrorTime = GetTime()
+            
+            -- Attempt recovery if possible
+            if module.Reset then
+                local resetSuccess = pcall(module.Reset, module)
+                if resetSuccess then
+                    ns:Print("|cffFFAA00Attempting to re-enable module '" .. name .. "' after reset")
+                    local retrySuccess = pcall(module.Enable, module)
+                    if retrySuccess then
+                        module.enabled = true
+                        ns:Print("|cff00FF00Successfully enabled module '" .. name .. "' after recovery")
+                        return true
+                    end
+                end
+            end
+            
+            return false
+        end
+        
+        module.enabled = true
+        module.lastError = nil
+        module.lastErrorTime = nil
+        
+        -- Post-enable validation
+        if module.PostEnable then
+            local postSuccess, postErr = pcall(module.PostEnable, module)
+            if not postSuccess then
+                ns:Print("|cffFFAA00Warning:|r Module '" .. name .. "' post-enable failed:", postErr)
+                -- Don't fail the enable for post-enable errors
+            end
+        end
+        
+        ns:Debug("Module '" .. name .. "' enabled successfully")
+        
+        -- Update config
+        ns:SetModuleEnabled(name, true)
+        
+        return true
+    else
+        ns:Debug("Module '" .. name .. "' has no Enable function, marking as enabled")
+        module.enabled = true
+        ns:SetModuleEnabled(name, true)
+        return true
+    end
+end
+
+-- Disable a specific module with comprehensive error handling
+function ns:DisableModule(name)
+    local module = ns.modules[name]
+    if not module then
+        ns:Print("|cffFF0000Error:|r Module '" .. tostring(name) .. "' not found")
+        return false
+    end
+    
+    -- Check if module is already disabled
+    if not module.enabled then
+        ns:Debug("Module", name, "is already disabled")
+        return true
+    end
+    
+    -- Pre-disable checks
+    if module.PreDisable then
+        local preSuccess, preErr = pcall(module.PreDisable, module)
+        if not preSuccess then
+            ns:Print("|cffFFAA00Warning:|r Module '" .. name .. "' pre-disable failed:", preErr)
+            -- Continue with disable anyway
+        end
+    end
+    
+    -- Attempt to disable the module
+    if module.Disable then
+        local success, err = pcall(module.Disable, module)
+        if not success then
+            ns:Print("|cffFF0000Failed to disable module '" .. name .. "':|r " .. (err or "unknown error"))
+            
+            -- Store error information
+            module.lastError = err
+            module.lastErrorTime = GetTime()
+            
+            -- Force disable by clearing critical references
+            if module.ForceDisable then
+                local forceSuccess = pcall(module.ForceDisable, module)
+                if forceSuccess then
+                    module.enabled = false
+                    ns:Print("|cffFFAA00Force-disabled module '" .. name .. "' after disable failure")
+                    ns:SetModuleEnabled(name, false)
+                    return true
+                end
+            end
+            
+            return false
+        end
+        
+        module.enabled = false
+        module.lastError = nil
+        module.lastErrorTime = nil
+        
+        -- Post-disable validation
+        if module.PostDisable then
+            local postSuccess, postErr = pcall(module.PostDisable, module)
+            if not postSuccess then
+                ns:Print("|cffFFAA00Warning:|r Module '" .. name .. "' post-disable failed:", postErr)
+                -- Don't fail the disable for post-disable errors
+            end
+        end
+        
+        ns:Debug("Module '" .. name .. "' disabled successfully")
+        
+        -- Update config
+        ns:SetModuleEnabled(name, false)
+        
+        return true
+    else
+        ns:Debug("Module '" .. name .. "' has no Disable function, marking as disabled")
+        module.enabled = false
+        ns:SetModuleEnabled(name, false)
+        return true
+    end
+end
+
+-- Toggle a module's enabled state
+function ns:ToggleModule(name)
+    local module = ns.modules[name]
+    if not module then
+        ns:Print("|cffFF0000Error:|r Module '" .. tostring(name) .. "' not found")
+        return false
+    end
+    
+    if module.enabled then
+        return ns:DisableModule(name)
+    else
+        return ns:EnableModule(name)
+    end
+end
+
+-- Safely set module enabled state in config
+function ns:SetModuleEnabled(name, enabled)
+    if not ns.config then
+        ns:ApplyConfig()
+    end
+    
+    if not ns.config.modules then
+        ns.config.modules = {}
+    end
+    
+    ns.config.modules[name] = enabled
+    
+    -- Update saved variables
+    if not DamiaUIDB.modules then
+        DamiaUIDB.modules = {}
+    end
+    DamiaUIDB.modules[name] = enabled
+end
+
+-- Get module status information
+function ns:GetModuleStatus(name)
+    local module = ns.modules[name]
+    if not module then
+        return {
+            exists = false,
+            name = name
+        }
+    end
+    
+    return {
+        exists = true,
+        name = name,
+        initialized = module.initialized or false,
+        enabled = module.enabled or false,
+        lastError = module.lastError,
+        lastErrorTime = module.lastErrorTime,
+        recoveryAttempted = module.recoveryAttempted or false
+    }
 end
 
 -- Setup slash commands
@@ -305,13 +695,369 @@ function ns:SetupSlashCommands()
         elseif cmd == "config" or cmd == "options" then
             print("|cff00FF7FDamiaUI|r: Configuration panel not yet implemented")
             -- Open config panel when implemented
+        elseif cmd == "modules" or cmd == "module" then
+            ns:HandleModuleCommand(rest)
+        elseif cmd == "profiles" or cmd == "profile" then
+            ns:HandleProfileCommand(rest)
+        elseif cmd == "status" then
+            ns:ShowAddonStatus()
+        elseif cmd == "reload" then
+            ns:ReloadModules()
+        elseif cmd == "dbm" then
+            ns:HandleDBMCommand(rest)
         else
             print("|cff00FF7FDamiaUI|r Commands:")
             print("  /dui config - Open configuration panel")
             print("  /dui reset - Reset all settings")
             print("  /dui test - Test mode")
+            print("  /dui modules [list|enable|disable|toggle|status] [name] - Module management")
+            print("  /dui profiles [list|create|set|delete|copy|reset|export|import] [name] - Profile management")
+            print("  /dui dbm [status|enable|disable|force|config] - DBM skin management")
+            print("  /dui status - Show addon status")
+            print("  /dui reload - Reload all modules")
         end
     end
+end
+
+-- Handle profile-specific commands
+function ns:HandleProfileCommand(args)
+    local action, profileName, extraArg = args:match("^(%S*)%s*([^%s]*)%s*(.-)$")
+    action = action:lower()
+    
+    if action == "" or action == "list" then
+        ns:ListProfiles()
+    elseif action == "current" then
+        if ns.Profiles and ns.Profiles.initialized then
+            local currentProfile = ns.Profiles:GetCurrentProfile()
+            ns:Print("Current profile: " .. currentProfile)
+            local info = ns.Profiles:GetProfileInfo(currentProfile)
+            if info and info.description then
+                print("  Description: " .. info.description)
+            end
+        else
+            ns:Print("Profile system not initialized")
+        end
+    elseif action == "create" then
+        if profileName and profileName ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                local description = extraArg and extraArg ~= "" and extraArg or nil
+                if ns.Profiles:CreateProfile(profileName, description) then
+                    ns:Print("Created and switched to profile: " .. profileName)
+                end
+            else
+                ns:Print("Profile system not initialized")
+            end
+        else
+            ns:Print("Usage: /dui profiles create <profile_name> [description]")
+        end
+    elseif action == "set" or action == "load" then
+        if profileName and profileName ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                if ns.Profiles:SetProfile(profileName) then
+                    C_Timer.After(0.5, ReloadUI)  -- Reload UI to apply changes
+                end
+            else
+                ns:LoadProfile(profileName)  -- Fallback to legacy function
+            end
+        else
+            ns:Print("Usage: /dui profiles set <profile_name>")
+        end
+    elseif action == "delete" then
+        if profileName and profileName ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                if ns.Profiles:DeleteProfile(profileName) then
+                    ns:Print("Deleted profile: " .. profileName)
+                end
+            else
+                ns:DeleteProfile(profileName)  -- Fallback to legacy function
+            end
+        else
+            ns:Print("Usage: /dui profiles delete <profile_name>")
+        end
+    elseif action == "copy" then
+        local sourceProfile, targetProfile = profileName, extraArg
+        if sourceProfile and sourceProfile ~= "" and targetProfile and targetProfile ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                if ns.Profiles:CopyProfile(sourceProfile, targetProfile) then
+                    ns:Print("Copied profile '" .. sourceProfile .. "' to '" .. targetProfile .. "'")
+                end
+            else
+                ns:Print("Profile system not initialized")
+            end
+        else
+            ns:Print("Usage: /dui profiles copy <source_profile> <target_profile>")
+        end
+    elseif action == "reset" then
+        if ns.Profiles and ns.Profiles.initialized then
+            local resetProfile = profileName and profileName ~= "" and profileName or nil
+            if ns.Profiles:ResetProfile(resetProfile) then
+                local currentProfile = resetProfile or ns.Profiles:GetCurrentProfile()
+                ns:Print("Reset profile: " .. currentProfile)
+                C_Timer.After(0.5, ReloadUI)  -- Reload UI to apply changes
+            end
+        else
+            ns:Print("Profile system not initialized")
+        end
+    elseif action == "export" then
+        if ns.Profiles and ns.Profiles.initialized then
+            local exportProfile = profileName and profileName ~= "" and profileName or nil
+            local exportString = ns.Profiles:ExportProfile(exportProfile)
+            if exportString then
+                ns:Print("Profile exported successfully. Copy this string:")
+                print(exportString)
+            end
+        else
+            ns:Print("Profile system not initialized")
+        end
+    elseif action == "import" then
+        if profileName and profileName ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                local newName = extraArg and extraArg ~= "" and extraArg or nil
+                if ns.Profiles:ImportProfile(profileName, newName) then
+                    ns:Print("Profile imported successfully")
+                end
+            else
+                ns:Print("Profile system not initialized")
+            end
+        else
+            ns:Print("Usage: /dui profiles import <import_string> [new_profile_name]")
+        end
+    elseif action == "info" then
+        if profileName and profileName ~= "" then
+            if ns.Profiles and ns.Profiles.initialized then
+                local info = ns.Profiles:GetProfileInfo(profileName)
+                if info then
+                    ns:Print("Profile Information: " .. profileName)
+                    print("  Description: " .. (info.description or "None"))
+                    print("  Author: " .. (info.author or "Unknown"))
+                    print("  Version: " .. (info.version or "Unknown"))
+                    if info.created then
+                        print("  Created: " .. date("%Y-%m-%d %H:%M:%S", info.created))
+                    end
+                    if info.modified then
+                        print("  Modified: " .. date("%Y-%m-%d %H:%M:%S", info.modified))
+                    end
+                    print("  Protected: " .. (info.protected and "Yes" or "No"))
+                else
+                    ns:Print("Profile not found: " .. profileName)
+                end
+            else
+                ns:Print("Profile system not initialized")
+            end
+        else
+            ns:Print("Usage: /dui profiles info <profile_name>")
+        end
+    else
+        ns:Print("Profile commands:")
+        ns:Print("  /dui profiles list - List all profiles")
+        ns:Print("  /dui profiles current - Show current profile")
+        ns:Print("  /dui profiles create <name> [description] - Create new profile")
+        ns:Print("  /dui profiles set <name> - Switch to profile")
+        ns:Print("  /dui profiles delete <name> - Delete profile")
+        ns:Print("  /dui profiles copy <source> <target> - Copy profile")
+        ns:Print("  /dui profiles reset [name] - Reset profile to defaults")
+        ns:Print("  /dui profiles export [name] - Export profile to string")
+        ns:Print("  /dui profiles import <string> [name] - Import profile from string")
+        ns:Print("  /dui profiles info <name> - Show profile information")
+    end
+end
+
+-- Handle module-specific commands
+function ns:HandleModuleCommand(args)
+    local action, moduleName = args:match("^(%S*)%s*(.-)$")
+    action = action:lower()
+    
+    if action == "" or action == "list" then
+        ns:ListModules()
+    elseif action == "enable" then
+        if moduleName and moduleName ~= "" then
+            if ns:EnableModule(moduleName) then
+                ns:Print("Enabled module: " .. moduleName)
+            end
+        else
+            ns:Print("Usage: /dui modules enable <module_name>")
+        end
+    elseif action == "disable" then
+        if moduleName and moduleName ~= "" then
+            if ns:DisableModule(moduleName) then
+                ns:Print("Disabled module: " .. moduleName)
+            end
+        else
+            ns:Print("Usage: /dui modules disable <module_name>")
+        end
+    elseif action == "toggle" then
+        if moduleName and moduleName ~= "" then
+            if ns:ToggleModule(moduleName) then
+                local status = ns:GetModuleStatus(moduleName)
+                ns:Print("Toggled module " .. moduleName .. " to: " .. (status.enabled and "enabled" or "disabled"))
+            end
+        else
+            ns:Print("Usage: /dui modules toggle <module_name>")
+        end
+    elseif action == "status" then
+        if moduleName and moduleName ~= "" then
+            ns:ShowModuleStatus(moduleName)
+        else
+            ns:ShowAllModuleStatus()
+        end
+    else
+        ns:Print("Module commands:")
+        ns:Print("  /dui modules list - List all modules")
+        ns:Print("  /dui modules enable <name> - Enable a module")
+        ns:Print("  /dui modules disable <name> - Disable a module")
+        ns:Print("  /dui modules toggle <name> - Toggle a module")
+        ns:Print("  /dui modules status [name] - Show module status")
+    end
+end
+
+-- Handle DBM skin commands
+function ns:HandleDBMCommand(args)
+    -- Check if DBM skin module exists
+    if not ns.modules.DBMSkin then
+        ns:Print("|cffFF0000Error:|r DBM Skin module not found")
+        return
+    end
+    
+    -- Delegate to DBM skin module
+    ns.modules.DBMSkin:HandleSlashCommand(args)
+end
+
+-- List all registered modules
+function ns:ListModules()
+    local moduleList = {}
+    for name in pairs(ns.modules) do
+        table.insert(moduleList, name)
+    end
+    
+    if #moduleList == 0 then
+        ns:Print("No modules registered")
+        return
+    end
+    
+    table.sort(moduleList)
+    ns:Print("Registered modules (" .. #moduleList .. "):")
+    
+    for _, name in ipairs(moduleList) do
+        local status = ns:GetModuleStatus(name)
+        local statusText = ""
+        
+        if status.initialized then
+            statusText = status.enabled and "|cff00FF00Enabled|r" or "|cffFF0000Disabled|r"
+        else
+            statusText = "|cffFFAA00Not Initialized|r"
+        end
+        
+        if status.lastError then
+            statusText = statusText .. " |cffFF0000(Error)|r"
+        end
+        
+        print("  " .. name .. ": " .. statusText)
+    end
+end
+
+-- Show detailed status for a specific module
+function ns:ShowModuleStatus(name)
+    local status = ns:GetModuleStatus(name)
+    
+    if not status.exists then
+        ns:Print("Module '" .. name .. "' not found")
+        return
+    end
+    
+    ns:Print("Module Status: " .. name)
+    ns:Print("  Initialized: " .. (status.initialized and "Yes" or "No"))
+    ns:Print("  Enabled: " .. (status.enabled and "Yes" or "No"))
+    
+    if status.lastError then
+        local errorTime = status.lastErrorTime and date("%H:%M:%S", status.lastErrorTime) or "Unknown"
+        ns:Print("  Last Error: " .. status.lastError .. " (at " .. errorTime .. ")")
+    end
+    
+    if status.recoveryAttempted then
+        ns:Print("  Recovery Attempted: Yes")
+    end
+end
+
+-- Show status for all modules
+function ns:ShowAllModuleStatus()
+    local modules = {}
+    for name in pairs(ns.modules) do
+        table.insert(modules, name)
+    end
+    
+    if #modules == 0 then
+        ns:Print("No modules registered")
+        return
+    end
+    
+    table.sort(modules)
+    
+    local initialized = 0
+    local enabled = 0
+    local failed = 0
+    
+    for _, name in ipairs(modules) do
+        local status = ns:GetModuleStatus(name)
+        if status.initialized then
+            initialized = initialized + 1
+        end
+        if status.enabled then
+            enabled = enabled + 1
+        end
+        if status.lastError then
+            failed = failed + 1
+        end
+    end
+    
+    ns:Print("Module Summary:")
+    ns:Print("  Total: " .. #modules)
+    ns:Print("  Initialized: " .. initialized)
+    ns:Print("  Enabled: " .. enabled)
+    ns:Print("  Failed: " .. failed)
+    
+    if failed > 0 then
+        ns:Print("\nFailed Modules:")
+        for _, name in ipairs(modules) do
+            local status = ns:GetModuleStatus(name)
+            if status.lastError then
+                print("  " .. name .. ": " .. status.lastError)
+            end
+        end
+    end
+end
+
+-- Show overall addon status
+function ns:ShowAddonStatus()
+    ns:Print("DamiaUI Status Report:")
+    ns:Print("  Version: " .. ns.version)
+    ns:Print("  oUF Embedded: " .. (ns.oUF and "Yes" or "No"))
+    ns:Print("  Config Loaded: " .. (ns.config and "Yes" or "No"))
+    
+    local moduleCount = 0
+    for _ in pairs(ns.modules) do
+        moduleCount = moduleCount + 1
+    end
+    ns:Print("  Registered Modules: " .. moduleCount)
+    
+    ns:ShowAllModuleStatus()
+end
+
+-- Reload all modules (reinitialize)
+function ns:ReloadModules()
+    ns:Print("Reloading all modules...")
+    
+    -- Disable all modules first
+    for name in pairs(ns.modules) do
+        if ns.modules[name].enabled then
+            ns:DisableModule(name)
+        end
+    end
+    
+    -- Wait a moment, then reinitialize
+    C_Timer.After(0.5, function()
+        ns:InitializeModules()
+        ns:Print("Module reload complete")
+    end)
 end
 
 -- Module registration function

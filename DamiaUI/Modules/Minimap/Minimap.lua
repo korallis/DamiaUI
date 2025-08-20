@@ -1,5 +1,5 @@
 -- DamiaUI Minimap Module
--- Based on ColdMisc minimap.lua, updated for WoW 11.2
+-- Based on ColdMisc minimap.lua, updated for WoW 11.2 with modern Menu API
 
 local addonName, ns = ...
 local Minimap = {}
@@ -7,6 +7,10 @@ ns.Minimap = Minimap
 
 -- Configuration
 Minimap.config = {}
+
+-- API Compatibility checks
+local hasModernMenuAPI = MenuUtil and MenuUtil.CreateContextMenu
+local hasModernTrackingAPI = C_Minimap and C_Minimap.GetTrackingInfo and C_Minimap.SetTracking
 
 -- Initialize module
 function Minimap:Initialize()
@@ -147,18 +151,116 @@ end
 
 -- Setup tracking
 function Minimap:SetupTracking()
-    -- Tracking button in 11.2
-    if MiniMapTracking then
-        MiniMapTracking:ClearAllPoints()
-        MiniMapTracking:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
-        MiniMapTracking:SetScale(0.8)
+    -- Find and position the tracking button using multiple possible names
+    local trackingButtons = {
+        MiniMapTracking,
+        MiniMapTrackingButton,
+        MinimapCluster and MinimapCluster.Tracking,
+        MinimapCluster and MinimapCluster.TrackingButton
+    }
+    
+    local trackingButton
+    for _, button in pairs(trackingButtons) do
+        if button then
+            trackingButton = button
+            break
+        end
     end
     
-    -- New tracking in modern WoW
-    if MiniMapTrackingButton then
-        MiniMapTrackingButton:ClearAllPoints()
-        MiniMapTrackingButton:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
-        MiniMapTrackingButton:SetScale(0.8)
+    if trackingButton then
+        -- Position and scale the tracking button
+        trackingButton:ClearAllPoints()
+        trackingButton:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
+        trackingButton:SetScale(0.8)
+        
+        -- Ensure it's shown if tracking is available
+        if hasModernTrackingAPI then
+            local success, numTrackingTypes = pcall(C_Minimap.GetNumTrackingTypes)
+            if success and numTrackingTypes and numTrackingTypes > 0 then
+                trackingButton:Show()
+            end
+        end
+        
+        -- Override click handler to use modern API if available
+        if hasModernTrackingAPI then
+            trackingButton:SetScript("OnClick", function(self, button)
+                if button == "LeftButton" then
+                    -- Show tracking menu using modern Menu API
+                    if MenuUtil and MenuUtil.CreateContextMenu then
+                        MenuUtil.CreateContextMenu(self, function(ownerRegion, rootDescription)
+                            rootDescription:CreateTitle("Minimap Tracking")
+                            
+                            local hasTracking = false
+                            for i = 1, numTrackingTypes do
+                                local name, textureFileID, active, trackingType = C_Minimap.GetTrackingInfo(i)
+                                if name then
+                                    hasTracking = true
+                                    local trackingOption = rootDescription:CreateButton(name, function()
+                                        C_Minimap.SetTracking(i, not active)
+                                    end)
+                                    if active then
+                                        trackingOption:SetChecked(true)
+                                    end
+                                end
+                            end
+                            
+                            if not hasTracking then
+                                rootDescription:CreateButton("No tracking available", function() end)
+                            end
+                        end)
+                    end
+                end
+            end)
+        end
+    else
+        -- Create a simple tracking indicator if no button exists
+        if not self.trackingFrame and hasModernTrackingAPI then
+            local success, numTrackingTypes = pcall(C_Minimap.GetNumTrackingTypes)
+            if success and numTrackingTypes and numTrackingTypes > 0 then
+                self.trackingFrame = CreateFrame("Button", "DamiaUITrackingButton", Minimap)
+                self.trackingFrame:SetSize(16, 16)
+                self.trackingFrame:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
+                
+                local texture = self.trackingFrame:CreateTexture(nil, "ARTWORK")
+                texture:SetAllPoints()
+                texture:SetTexture("Interface\\Minimap\\Tracking\\None")
+                
+                self.trackingFrame:SetScript("OnClick", function(self, button)
+                    if button == "LeftButton" and hasModernMenuAPI then
+                        MenuUtil.CreateContextMenu(self, function(ownerRegion, rootDescription)
+                            rootDescription:CreateTitle("Minimap Tracking")
+                            
+                            local success2, numTypes = pcall(C_Minimap.GetNumTrackingTypes)
+                            if success2 and numTypes then
+                                for i = 1, numTypes do
+                                    local success3, name, textureFileID, active = pcall(C_Minimap.GetTrackingInfo, i)
+                                    if success3 and name then
+                                        local option = rootDescription:CreateButton(name, function()
+                                            pcall(C_Minimap.SetTracking, i, not active)
+                                        end)
+                                        if active then
+                                            option:SetChecked(true)
+                                        end
+                                    end
+                                end
+                            end
+                        end)
+                    end
+                end)
+                
+                -- Tooltip
+                self.trackingFrame:SetScript("OnEnter", function(self)
+                    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+                    GameTooltip:SetText("Tracking Options")
+                    GameTooltip:AddLine("Left-click to open tracking menu", 1, 1, 1)
+                    GameTooltip:Show()
+                end)
+                
+                self.trackingFrame:SetScript("OnLeave", function(self)
+                    GameTooltip:Hide()
+                end)
+            end
+        end
     end
 end
 
@@ -211,6 +313,14 @@ end
 
 -- Setup coordinates
 function Minimap:SetupCoordinates()
+    -- Check if coordinate APIs are available
+    if not C_Map or not C_Map.GetBestMapForUnit or not C_Map.GetPlayerMapPosition then
+        if ns.debug then
+            print("DamiaUI: Map coordinate APIs not available")
+        end
+        return
+    end
+    
     -- Create coordinate frame
     if not self.coords then
         self.coords = CreateFrame("Frame", "DamiaUIMinimapCoords", Minimap)
@@ -223,28 +333,29 @@ function Minimap:SetupCoordinates()
         self.coords.text:SetTextColor(1, 1, 1)
     end
     
-    -- Update coordinates
+    -- Update coordinates with error handling
     local updateTimer = 0
     self.coords:SetScript("OnUpdate", function(self, elapsed)
         updateTimer = updateTimer + elapsed
         if updateTimer > 0.1 then
             updateTimer = 0
             
-            local mapID = C_Map.GetBestMapForUnit("player")
-            if mapID then
-                local position = C_Map.GetPlayerMapPosition(mapID, "player")
-                if position then
+            -- Wrap coordinate fetching in pcall for safety
+            local success, mapID = pcall(C_Map.GetBestMapForUnit, "player")
+            if success and mapID then
+                local success2, position = pcall(C_Map.GetPlayerMapPosition, mapID, "player")
+                if success2 and position then
                     local x, y = position:GetXY()
-                    if x and y then
+                    if x and y and x > 0 and y > 0 then
                         self.text:SetFormattedText("%.1f, %.1f", x * 100, y * 100)
                     else
-                        self.text:SetText("")
+                        self.text:SetText("---.-, ---.--")
                     end
                 else
-                    self.text:SetText("")
+                    self.text:SetText("---.-, ---.--")
                 end
             else
-                self.text:SetText("")
+                self.text:SetText("---.-, ---.--")
             end
         end
     end)
@@ -326,36 +437,93 @@ function Minimap:SetupMouseWheel()
         end
     end)
     
-    -- Right click menu (moved inside function)
+    -- Right click menu using modern Menu API
     Minimap:SetScript("OnMouseUp", function(self, button)
         if button == "RightButton" then
-            -- Toggle tracking menu
-            local dropdown = CreateFrame("Frame", "DamiaUIMinimapDropdown", UIParent, "UIDropDownMenuTemplate")
-            dropdown:SetPoint("TOPRIGHT", self, "BOTTOMLEFT", 0, 0)
-            
-            -- In modern WoW, use the built-in minimap tracking menu
-            if MiniMapTrackingDropDown then
-                ToggleDropDownMenu(1, nil, MiniMapTrackingDropDown, self, 0, 0)
-            else
-                -- Create custom menu
-                local menuList = {}
-                table.insert(menuList, {text = "Calendar", func = function() 
-                    if Calendar_Toggle then Calendar_Toggle() else GameTimeFrame:Click() end
-                end})
-                table.insert(menuList, {text = "Tracking", func = function() 
-                    if MiniMapTracking then MiniMapTracking:Click() end
-                end})
+            -- Create context menu using modern Menu API
+            if hasModernMenuAPI then
+                local success, err = pcall(function()
+                    MenuUtil.CreateContextMenu(self, function(ownerRegion, rootDescription)
+                        -- Add calendar option
+                        rootDescription:CreateButton("Calendar", function()
+                            if Calendar_Toggle then 
+                                Calendar_Toggle() 
+                            elseif GameTimeFrame then 
+                                GameTimeFrame:Click() 
+                            end
+                        end)
+                        
+                        -- Add tracking submenu if modern tracking API is available
+                        if hasModernTrackingAPI then
+                            local trackingSubmenu = rootDescription:CreateButton("Tracking")
+                            trackingSubmenu:CreateSubmenu(function(submenu)
+                                local success2, numTrackingTypes = pcall(C_Minimap.GetNumTrackingTypes)
+                                if success2 and numTrackingTypes and numTrackingTypes > 0 then
+                                    for i = 1, numTrackingTypes do
+                                        local success3, name, textureFileID, active, type, subType, spellID = pcall(C_Minimap.GetTrackingInfo, i)
+                                        if success3 and name then
+                                            local trackingButton = submenu:CreateButton(name, function()
+                                                pcall(C_Minimap.SetTracking, i, not active)
+                                            end)
+                                            if active then
+                                                trackingButton:SetChecked(true)
+                                            end
+                                        end
+                                    end
+                                else
+                                    submenu:CreateButton("No tracking available", function() end)
+                                end
+                            end)
+                        else
+                            -- Fallback tracking option
+                            rootDescription:CreateButton("Tracking", function()
+                                if MiniMapTracking and MiniMapTracking:IsVisible() then
+                                    MiniMapTracking:Click()
+                                end
+                            end)
+                        end
+                        
+                        -- Add separator
+                        rootDescription:CreateDivider()
+                        
+                        -- Add zoom options
+                        rootDescription:CreateButton("Zoom In", function()
+                            if Minimap_ZoomIn then
+                                Minimap_ZoomIn()
+                            end
+                        end)
+                        rootDescription:CreateButton("Zoom Out", function()
+                            if Minimap_ZoomOut then
+                                Minimap_ZoomOut()
+                            end
+                        end)
+                    end)
+                end)
                 
-                EasyMenu(menuList, dropdown, "cursor", 0, 0, "MENU", 2)
-            end
-        elseif button == "MiddleButton" then
-            -- Toggle calendar
-            if Calendar_Toggle then
-                Calendar_Toggle()
+                if not success and ns.debug then
+                    print("DamiaUI: Error creating context menu: " .. tostring(err))
+                end
             else
-                if GameTimeFrame then
+                -- Fallback for clients without modern Menu API
+                print("DamiaUI: Right-click menu unavailable (Menu API not found)")
+                -- Try to open tracking button directly
+                if MiniMapTracking and MiniMapTracking:IsVisible() then
+                    MiniMapTracking:Click()
+                elseif GameTimeFrame and GameTimeFrame:IsVisible() then
                     GameTimeFrame:Click()
                 end
+            end
+        elseif button == "MiddleButton" then
+            -- Toggle calendar with error handling
+            local success = false
+            if Calendar_Toggle then
+                success = pcall(Calendar_Toggle)
+            elseif GameTimeFrame and GameTimeFrame:IsVisible() then
+                success = pcall(function() GameTimeFrame:Click() end)
+            end
+            
+            if not success and ns.debug then
+                print("DamiaUI: Unable to toggle calendar")
             end
         end
     end)

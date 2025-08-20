@@ -3,20 +3,18 @@
 ## Notes: Clean, minimalist UI replacement 
 ## Author: Damia
 ## Version: 11.2.0
-## SavedVariables: DamiaUIDB
+## SavedVariables: DamiaUIDB, DamiaUIProfileDB
 ## SavedVariablesPerCharacter: DamiaUICharDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 ## Category: DamiaUI
 ## X-Website: https://github.com/korallis/DamiaUI
 ## X-License: MIT
 
-# Core Libraries
-Libraries\LibStub\LibStub.lua
-Libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
-
-# Ace3 Libraries (for configuration and database)
+# Core Libraries - Use Ace3's versions for consistency
 Libraries\Ace3\LibStub\LibStub.lua
 Libraries\Ace3\CallbackHandler-1.0\CallbackHandler-1.0.xml
+
+# Ace3 Libraries (for configuration and database)
 Libraries\Ace3\AceAddon-3.0\AceAddon-3.0.xml
 Libraries\Ace3\AceEvent-3.0\AceEvent-3.0.xml
 Libraries\Ace3\AceTimer-3.0\AceTimer-3.0.xml
@@ -96,3 +94,5 @@ Modules\Misc\MicroMenu.lua
 Modules\Misc\Tooltip.lua
 Modules\Misc\RollFrame.lua
 Modules\Misc\LootFrame.lua
+
+Modules\Skins\DBM.lua

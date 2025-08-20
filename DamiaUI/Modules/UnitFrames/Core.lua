@@ -2,8 +2,8 @@
 -- Based on oUF_Coldkil, updated for WoW 11.2 with latest oUF
 
 local addonName, ns = ...
-local oUF = ns.oUF or oUF
-assert(oUF, "DamiaUI was unable to locate oUF install.")
+local oUF = ns.oUF
+if not oUF then return end
 
 local UnitFrames = {}
 ns.UnitFrames = UnitFrames

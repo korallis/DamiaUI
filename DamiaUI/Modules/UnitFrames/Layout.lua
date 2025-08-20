@@ -2,7 +2,8 @@
 -- Spawns all unit frames using oUF
 
 local addonName, ns = ...
-local oUF = ns.oUF or oUF
+local oUF = ns.oUF
+if not oUF then return end
 local UnitFrames = ns.UnitFrames
 
 -- Spawn all unit frames

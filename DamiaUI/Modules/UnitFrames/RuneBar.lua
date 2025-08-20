@@ -2,7 +2,8 @@
 -- Based on oUF_Coldkil runebar, updated for WoW 11.2
 
 local addonName, ns = ...
-local oUF = ns.oUF or _G.oUF
+local oUF = ns.oUF
+if not oUF then return end
 local UnitFrames = ns.UnitFrames
 
 -- Death Knight Rune Bar (ColdUI style)

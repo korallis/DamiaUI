@@ -134,20 +134,40 @@ ns.configDefaults = {
 
 -- Apply configuration
 function ns:ApplyConfig()
+    local targetConfig = DamiaUIDB
+    
+    -- If profiles are initialized, use profile config
+    if ns.Profiles and ns.Profiles.initialized and ns.Profiles.db then
+        targetConfig = ns.Profiles.db.profile
+    end
+    
     -- Merge saved config with defaults
     for category, settings in pairs(ns.configDefaults) do
-        if not DamiaUIDB[category] then
-            DamiaUIDB[category] = {}
+        if not targetConfig[category] then
+            targetConfig[category] = {}
         end
         for key, value in pairs(settings) do
-            if DamiaUIDB[category][key] == nil then
-                DamiaUIDB[category][key] = value
+            if targetConfig[category][key] == nil then
+                targetConfig[category][key] = value
             end
         end
     end
     
     -- Update reference
-    ns.config = DamiaUIDB
+    ns.config = targetConfig
+    
+    -- Sync back to legacy DB for compatibility
+    if ns.Profiles and ns.Profiles.initialized and ns.Profiles.db then
+        -- Profile system is active, keep legacy DB in sync
+        for category, settings in pairs(targetConfig) do
+            if not DamiaUIDB[category] then
+                DamiaUIDB[category] = {}
+            end
+            for key, value in pairs(settings) do
+                DamiaUIDB[category][key] = value
+            end
+        end
+    end
 end
 
 -- Get config value
@@ -166,12 +186,32 @@ function ns:SetConfig(category, key, value)
         ns.config[category] = {}
     end
     ns.config[category][key] = value
+    
+    -- Update both profile system and legacy DB
+    if ns.Profiles and ns.Profiles.initialized and ns.Profiles.db then
+        -- Profile system is active
+        if not ns.Profiles.db.profile[category] then
+            ns.Profiles.db.profile[category] = {}
+        end
+        ns.Profiles.db.profile[category][key] = value
+    end
+    
+    -- Always update legacy DB for compatibility
+    if not DamiaUIDB[category] then
+        DamiaUIDB[category] = {}
+    end
     DamiaUIDB[category][key] = value
 end
 
 -- Reset configuration
 function ns:ResetConfig()
-    DamiaUIDB = {}
-    DamiaUICharDB = {}
-    ns:ApplyConfig()
+    -- Reset profile if profile system is active
+    if ns.Profiles and ns.Profiles.initialized then
+        ns.Profiles:ResetProfile()
+    else
+        -- Legacy reset
+        DamiaUIDB = {}
+        DamiaUICharDB = {}
+        ns:ApplyConfig()
+    end
 end

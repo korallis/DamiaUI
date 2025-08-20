@@ -1,0 +1,67 @@
+package-as: DamiaUI
+
+externals:
+  DamiaUI/Libraries/Ace3: https://repos.wowace.com/wow/ace3/trunk
+  DamiaUI/Libraries/LibStub: https://repos.wowace.com/wow/libstub/trunk
+  DamiaUI/Libraries/CallbackHandler-1.0: https://repos.wowace.com/wow/callbackhandler/trunk/CallbackHandler-1.0
+  DamiaUI/Libraries/LibSharedMedia-3.0: https://repos.wowace.com/wow/libsharedmedia-3-0/trunk
+  DamiaUI/Libraries/LibActionButton-1.0: https://github.com/Nevcairiel/LibActionButton-1.0.git
+  DamiaUI/Libraries/oUF: https://github.com/oUF-wow/oUF.git
+
+enable-nolib-creation: no
+
+ignore:
+  - .github
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - LICENSE
+  - "*.md"
+  - "*.txt"
+  - "*.sh"
+  - "*.bat"
+  - ".DS_Store"
+  - "Thumbs.db"
+  - ".vscode"
+  - ".idea"
+  - "*.sublime-*"
+  - "*.tmp"
+  - "*.bak"
+  - "*.swp"
+  - "*~"
+  - "*.log"
+  - ".env*"
+  - "wow-documentation/"
+  - "project-documentation/"
+  - "DamiaUI-Plan/"
+  - "DamiaUI-V2/"
+  - "DamiaUI_backup_*/"
+  - "GW2_UI/"
+  - "ColdUI*/"
+  - "CallbackHandler-1.0/"
+  - "LibStub/"
+  - "LibActionButton-1.0.lua"
+  - "LibActionButton-1.0.toc"
+  - "LibButtonGlow-1.0/"
+  - "libraries/"
+  - "CHANGES.txt"
+  - "COLDUI_TO_DAMIAUI_MIGRATION_PLAN.md"
+  - "ColdDBM/"
+  - "DAMIAUI_*.md"
+  - "USE_WOW_EXPERT.md"
+  - "WOW_ADDON_EXPERT*.md"
+  - "issues.*"
+  - "*.zip"
+  - "*.tar.gz"
+
+required-dependencies:
+  - libstub
+  - callbackhandler
+  - ace3
+  - lib-shared-media-3-0
+
+optional-dependencies:
+  - lib-action-button-1-0
+
+move-folders:
+  DamiaUI/Libraries/Ace3/Ace3: DamiaUI/Libraries/Ace3

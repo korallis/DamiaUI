@@ -374,5 +374,433 @@ if not ToggleDropDownMenu then
     end
 end
 
+-- MiniMapTrackingDropDown fix (after line 376)
+if not MiniMapTrackingDropDown then
+    -- Create dummy frame if it doesn't exist
+    MiniMapTrackingDropDown = CreateFrame("Frame", "MiniMapTrackingDropDown", Minimap)
+    MiniMapTrackingDropDown:Hide()
+    
+    -- Add toggle function if it doesn't exist
+    MiniMapTrackingDropDown.Toggle = function()
+        if C_Minimap and C_Minimap.GetTrackingInfo then
+            -- Use new tracking API if available
+            ToggleDropDownMenu(1, nil, MiniMapTrackingDropDown, "cursor", 0, 0)
+        end
+    end
+end
+
+-- InCombatLockdown function (ensure it exists)
+if not InCombatLockdown then
+    InCombatLockdown = function()
+        return UnitAffectingCombat("player") or false
+    end
+end
+
+-- Combat Lockdown Protection Utilities
+ns.CombatProtection = ns.CombatProtection or {}
+
+-- Queue for functions to execute after combat
+local postCombatQueue = {}
+local combatFrame = CreateFrame("Frame")
+combatFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+combatFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+combatFrame:SetScript("OnEvent", function(self, event)
+    if event == "PLAYER_REGEN_ENABLED" then
+        -- Execute queued functions after combat
+        for i = 1, #postCombatQueue do
+            local func = postCombatQueue[i]
+            if type(func) == "function" then
+                pcall(func)
+            end
+        end
+        wipe(postCombatQueue)
+    end
+end)
+
+-- Safe execution wrapper
+function ns.CombatProtection.SafeCall(func, ...)
+    if not func or type(func) ~= "function" then
+        return false
+    end
+    
+    if InCombatLockdown() then
+        -- Queue for after combat
+        table.insert(postCombatQueue, function()
+            func(...)
+        end)
+        return false, "queued"
+    else
+        -- Execute immediately
+        local success, result = pcall(func, ...)
+        return success, result
+    end
+end
+
+-- Safe frame modification wrapper
+function ns.CombatProtection.SafeFrameCall(frame, method, ...)
+    if not frame or not method then
+        return false
+    end
+    
+    if InCombatLockdown() then
+        table.insert(postCombatQueue, function()
+            if frame and frame[method] then
+                frame[method](frame, ...)
+            end
+        end)
+        return false, "queued"
+    else
+        if frame and frame[method] then
+            local success, result = pcall(frame[method], frame, ...)
+            return success, result
+        end
+    end
+    return false
+end
+
+-- Safe attribute setting
+function ns.CombatProtection.SafeSetAttribute(frame, attribute, value)
+    if not frame or not attribute then
+        return false
+    end
+    
+    if InCombatLockdown() then
+        table.insert(postCombatQueue, function()
+            if frame and frame.SetAttribute then
+                frame:SetAttribute(attribute, value)
+            end
+        end)
+        return false, "queued"
+    else
+        if frame and frame.SetAttribute then
+            local success = pcall(frame.SetAttribute, frame, attribute, value)
+            return success
+        end
+    end
+    return false
+end
+
+-- Secure Hook Utilities
+ns.SecureHooks = ns.SecureHooks or {}
+local hookedFunctions = {}
+
+-- Safe secure hook wrapper
+function ns.SecureHooks.SecureHook(target, method, handler)
+    if not target or not method or not handler then
+        return false
+    end
+    
+    local hookKey = tostring(target) .. "." .. method
+    if hookedFunctions[hookKey] then
+        return false, "already hooked"
+    end
+    
+    if type(target) == "string" then
+        -- Global function hook
+        if _G[target] then
+            hooksecurefunc(target, handler)
+            hookedFunctions[hookKey] = true
+            return true
+        end
+    elseif type(target) == "table" and target[method] then
+        -- Object method hook
+        hooksecurefunc(target, method, handler)
+        hookedFunctions[hookKey] = true
+        return true
+    end
+    
+    return false, "target not found"
+end
+
+-- Blizzard function hooks with error handling
+function ns.SecureHooks.HookBlizzardFunction(funcName, handler)
+    if not funcName or not handler then
+        return false
+    end
+    
+    if _G[funcName] then
+        local success, err = pcall(hooksecurefunc, funcName, function(...)
+            local ok, result = pcall(handler, ...)
+            if not ok then
+                ns:Debug("Error in hooked function " .. funcName .. ": " .. tostring(result))
+            end
+        end)
+        
+        if success then
+            hookedFunctions[funcName] = true
+            return true
+        else
+            ns:Debug("Failed to hook function " .. funcName .. ": " .. tostring(err))
+        end
+    end
+    
+    return false
+end
+
+-- Performance Optimization - Cached Function References
+ns.CachedAPI = ns.CachedAPI or {}
+
+-- Cache frequently used functions
+local cachedFunctions = {
+    -- Unit functions
+    UnitHealth = UnitHealth,
+    UnitHealthMax = UnitHealthMax,
+    UnitPower = UnitPower,
+    UnitPowerMax = UnitPowerMax,
+    UnitPowerType = UnitPowerType,
+    UnitClass = UnitClass,
+    UnitLevel = UnitLevel,
+    UnitName = UnitName,
+    UnitExists = UnitExists,
+    UnitIsDeadOrGhost = UnitIsDeadOrGhost,
+    UnitIsConnected = UnitIsConnected,
+    UnitReaction = UnitReaction,
+    UnitPlayerControlled = UnitPlayerControlled,
+    UnitCanAttack = UnitCanAttack,
+    UnitIsFriend = UnitIsFriend,
+    UnitIsUnit = UnitIsUnit,
+    
+    -- Combat functions
+    InCombatLockdown = InCombatLockdown,
+    UnitAffectingCombat = UnitAffectingCombat,
+    
+    -- Time functions
+    GetTime = GetTime,
+    
+    -- Action functions (cached with nil checks)
+    GetActionCooldown = GetActionCooldown,
+    GetActionInfo = GetActionInfo,
+    HasAction = HasAction,
+    IsEquippedAction = IsEquippedAction,
+    
+    -- Spell functions
+    GetSpellCooldown = GetSpellCooldown,
+    GetSpellInfo = GetSpellInfo,
+    
+    -- Item functions
+    GetItemInfo = GetItemInfo,
+    GetItemQualityColor = GetItemQualityColor,
+    
+    -- System functions
+    GetFramerate = GetFramerate,
+    collectgarbage = collectgarbage,
+}
+
+-- Provide cached access
+for funcName, func in pairs(cachedFunctions) do
+    if func then
+        ns.CachedAPI[funcName] = func
+    end
+end
+
+-- Performance monitoring for cached calls
+local callCounts = {}
+local function trackAPICall(funcName)
+    callCounts[funcName] = (callCounts[funcName] or 0) + 1
+end
+
+-- Wrapped cached functions with call tracking (only in debug mode)
+if ns.debugMode then
+    for funcName, func in pairs(ns.CachedAPI) do
+        ns.CachedAPI[funcName] = function(...)
+            trackAPICall(funcName)
+            return func(...)
+        end
+    end
+    
+    -- Debug function to print API usage stats
+    function ns.CachedAPI.GetUsageStats()
+        return callCounts
+    end
+end
+
+-- Secure Frame Handling Utilities
+ns.SecureFrames = ns.SecureFrames or {}
+
+-- Create secure frame with protected attributes
+function ns.SecureFrames.CreateSecureFrame(frameType, name, parent, template)
+    if InCombatLockdown() then
+        return nil, "combat lockdown"
+    end
+    
+    local frame = CreateFrame(frameType, name, parent, template)
+    if frame then
+        -- Mark as DamiaUI frame
+        frame._damiaUI = true
+        frame._secureFrame = true
+        
+        -- Add protection methods
+        frame.SafeSetAttribute = function(self, attr, value)
+            return ns.CombatProtection.SafeSetAttribute(self, attr, value)
+        end
+        
+        frame.SafeCall = function(self, method, ...)
+            return ns.CombatProtection.SafeFrameCall(self, method, ...)
+        end
+    end
+    
+    return frame
+end
+
+-- Secure frame attribute batch setter
+function ns.SecureFrames.SetSecureAttributes(frame, attributes)
+    if not frame or not attributes or InCombatLockdown() then
+        if InCombatLockdown() then
+            table.insert(postCombatQueue, function()
+                ns.SecureFrames.SetSecureAttributes(frame, attributes)
+            end)
+        end
+        return false
+    end
+    
+    for attr, value in pairs(attributes) do
+        if frame.SetAttribute then
+            pcall(frame.SetAttribute, frame, attr, value)
+        end
+    end
+    
+    return true
+end
+
+-- Frame cleanup utility
+function ns.SecureFrames.CleanupSecureFrame(frame)
+    if not frame then return end
+    
+    -- Queue cleanup if in combat
+    if InCombatLockdown() then
+        table.insert(postCombatQueue, function()
+            ns.SecureFrames.CleanupSecureFrame(frame)
+        end)
+        return
+    end
+    
+    -- Clear attributes
+    if frame.SetAttribute then
+        frame:SetAttribute("type", nil)
+        frame:SetAttribute("action", nil)
+        frame:SetAttribute("spell", nil)
+        frame:SetAttribute("item", nil)
+        frame:SetAttribute("macro", nil)
+    end
+    
+    -- Hide and clear parent
+    frame:Hide()
+    frame:SetParent(nil)
+    frame._damiaUI = nil
+    frame._secureFrame = nil
+end
+
+-- Additional missing API functions based on validation report
+
+-- Fix for GetInventorySlotInfo (might be deprecated)
+if not GetInventorySlotInfo then
+    GetInventorySlotInfo = function(slotName)
+        local slotId = _G[slotName .. "SLOT"]
+        if slotId then
+            return slotId, nil, nil
+        end
+        return nil
+    end
+end
+
+-- Fix for GetAverageItemLevel (moved to C_PaperDollInfo)
+if not GetAverageItemLevel and C_PaperDollInfo then
+    GetAverageItemLevel = function()
+        return C_PaperDollInfo.GetItemLevel() or 0
+    end
+end
+
+-- Fix for UnitGroupRolesAssigned (moved to C_LFGInfo or GetSpecialization)
+if not UnitGroupRolesAssigned then
+    UnitGroupRolesAssigned = function(unit)
+        if unit == "player" then
+            local spec = GetSpecialization()
+            if spec then
+                local role = GetSpecializationRole(spec)
+                return role or "NONE"
+            end
+        end
+        return "NONE"
+    end
+end
+
+-- Fix for GetNumGroupMembers (ensure it exists)
+if not GetNumGroupMembers then
+    GetNumGroupMembers = function()
+        return GetNumPartyMembers() or 0
+    end
+end
+
+-- Fix for GetNumPartyMembers (might be deprecated)
+if not GetNumPartyMembers then
+    GetNumPartyMembers = function()
+        return GetNumSubgroupMembers() or 0
+    end
+end
+
+-- Fix for IsInGroup (ensure it exists)
+if not IsInGroup then
+    IsInGroup = function()
+        return (GetNumGroupMembers() > 0) or (GetNumSubgroupMembers() > 0)
+    end
+end
+
+-- Fix for IsInRaid (ensure it exists)  
+if not IsInRaid then
+    IsInRaid = function()
+        return IsInGroup(LE_PARTY_CATEGORY_HOME) and GetNumGroupMembers() > 5
+    end
+end
+
+-- Additional secure utilities for addon modules
+ns.SecureUtils = ns.SecureUtils or {}
+
+-- Batch execute functions after combat
+function ns.SecureUtils.ExecuteAfterCombat(funcTable)
+    if not funcTable then return end
+    
+    for _, func in ipairs(funcTable) do
+        if type(func) == "function" then
+            table.insert(postCombatQueue, func)
+        end
+    end
+end
+
+-- Check if frame can be safely modified
+function ns.SecureUtils.CanModifyFrame(frame)
+    if not frame then return false end
+    
+    -- Check combat lockdown
+    if InCombatLockdown() then return false end
+    
+    -- Check if frame is protected
+    if frame:IsProtected() then return false end
+    
+    return true
+end
+
+-- Safe mass frame operation
+function ns.SecureUtils.SafeMassFrameOperation(frames, operation, ...)
+    if InCombatLockdown() then
+        table.insert(postCombatQueue, function()
+            ns.SecureUtils.SafeMassFrameOperation(frames, operation, ...)
+        end)
+        return false, "queued"
+    end
+    
+    local args = {...}
+    for _, frame in ipairs(frames) do
+        if frame and frame[operation] then
+            pcall(frame[operation], frame, unpack(args))
+        end
+    end
+    
+    return true
+end
+
 -- Print debug info
-ns:Debug("API Compatibility Layer loaded for WoW 11.2")
+ns:Debug("Enhanced API Compatibility Layer loaded for WoW 11.2")
+ns:Debug("Combat Protection: Enabled")
+ns:Debug("Secure Hooks: Enabled") 
+ns:Debug("Performance Caching: " .. (ns.CachedAPI and "Enabled" or "Disabled"))
+ns:Debug("Secure Frame Utils: Enabled")

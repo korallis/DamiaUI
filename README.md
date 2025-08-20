@@ -1,104 +1,89 @@
-# DamiaUI - World of Warcraft UI Replacement
+# DamiaUI - Modern Minimalist UI for World of Warcraft
 
-## Clean Rebuild Project
+A clean, minimalist UI replacement for World of Warcraft 11.2+ (The War Within expansion and newer), designed to provide a streamlined and elegant interface experience.
 
-This is a complete rebuild of DamiaUI, starting from proven working code.
+## Features
 
-## Project Structure
-
-```
-Damia/                     # Project root
-├── README.md             # This file
-├── LICENSE               # MIT License
-├── .gitignore           # Git configuration
-├── DamiaUI-Plan/        # Development documentation
-│   ├── MASTER_REBUILD_PLAN.md      # Start here!
-│   ├── WORKING_EXAMPLE.lua         # 350 lines of working code
-│   ├── MISTAKES_ANALYSIS.md        # Learning from failures
-│   ├── PREVENTION_ROADMAP.md       # Avoiding past mistakes
-│   ├── IMPLEMENTATION_GUIDE.md     # Working code patterns
-│   └── VALIDATION_CHECKLIST.md     # Testing procedures
-└── DamiaUI/             # The actual addon folder
-    ├── DamiaUI.toc      # Addon manifest
-    ├── DamiaUI.lua      # Main addon file
-    ├── Libraries/       # Standard libraries (NO RENAMING!)
-    ├── Locales/        # Localization files
-    └── Media/          # Icons and assets
-```
+- **Clean Action Bars**: Minimalist action bar layout with smooth animations
+- **Modern Unit Frames**: Player, target, party, and raid frames with clean styling  
+- **Integrated Minimap**: Streamlined minimap with essential information
+- **Customizable Elements**: Configure colors, positioning, and visibility
+- **Performance Optimized**: Lightweight design for smooth gameplay
+- **Aurora Skinning**: Beautiful, consistent theming across all UI elements
 
 ## Installation
 
-1. Copy the `DamiaUI` folder to:
+### Automatic Installation (Recommended)
+Download DamiaUI from:
+- [CurseForge](https://www.curseforge.com/wow/addons/damiaui)
+- [WoWInterface](https://www.wowinterface.com/downloads/info-damiaui.html)
+
+### Manual Installation
+1. Download the latest release from [GitHub Releases](https://github.com/korallis/DamiaUI/releases)
+2. Extract the `DamiaUI` folder to your AddOns directory:
    - **Windows**: `C:\Program Files\World of Warcraft\_retail_\Interface\AddOns\`
    - **Mac**: `/Applications/World of Warcraft/_retail_/Interface/AddOns/`
+3. Restart World of Warcraft
+4. Enable DamiaUI in the AddOns menu
 
-2. Launch World of Warcraft
-3. Verify addon is listed in the AddOns menu
-4. Type `/damiaui` in-game to test
+## Getting Started
 
-## Development Approach
+1. **Enable the addon**: Make sure DamiaUI is checked in your AddOns list
+2. **Configure settings**: Type `/damiaui` in-game to open configuration options
+3. **Reload UI**: Type `/reload` to apply changes
+4. **Positioning**: Use `/damiaui unlock` to move frames, then `/damiaui lock` when finished
 
-### Current Status: Clean Start
-- Removed 131 files of non-functional code
-- Starting with WORKING_EXAMPLE.lua (350 lines that actually work)
-- Following proven patterns from successful addons
+## Configuration Commands
 
-### Development Phases
-
-**Phase 1: Foundation** (Current)
-- Implement working player/target frames
-- Add functional action bars
-- Test everything works in-game
-
-**Phase 2: Modularization**
-- Split into logical files (6-7 max)
-- Maintain all functionality
-- Test after each change
-
-**Phase 3: Configuration**
-- Add slash commands
-- Implement saved variables
-- Keep it simple
-
-## Core Development Rules
-
-1. **NEVER rename libraries** - Use standard LibStub names
-2. **Test in-game frequently** - Within 1 hour of coding
-3. **Working code first** - No abstractions without functionality
-4. **One feature at a time** - Complete before starting next
-5. **Visible changes only** - If users can't see it, don't build it
-
-## Documentation
-
-All development documentation is in the `DamiaUI-Plan/` folder:
-
-- **Start with**: `MASTER_REBUILD_PLAN.md`
-- **Learn from**: `MISTAKES_ANALYSIS.md`
-- **Reference**: `IMPLEMENTATION_GUIDE.md`
-- **Test with**: `VALIDATION_CHECKLIST.md`
-
-## Key Lesson Learned
-
-> **131 files with zero functionality < 350 lines that actually work**
-
-The previous version had excessive complexity with no actual functionality. This rebuild focuses on simple, working code that users can actually see and use.
-
-## Testing
-
-```lua
-/damiaui         -- Main command
-/reload          -- Reload UI
-/framestack      -- Check frame visibility
+```
+/damiaui                    -- Open main configuration
+/damiaui unlock            -- Unlock frames for positioning
+/damiaui lock              -- Lock frames in place  
+/damiaui reset             -- Reset all settings to defaults
+/damiaui profile           -- Manage configuration profiles
 ```
 
-## License
+## System Requirements
 
-MIT License - See LICENSE file for details
+- **World of Warcraft**: 11.2+ (The War Within expansion or newer)
+- **Memory**: Minimal impact - typically <50MB
+- **Dependencies**: All required libraries are included
+
+## Compatibility
+
+DamiaUI is designed to work alongside popular addons:
+- WeakAuras
+- Details! Damage Meter
+- Deadly Boss Mods (DBM)
+- BigWigs
+- Plater Nameplates
+
+## Support
+
+- **Bug Reports**: [GitHub Issues](https://github.com/korallis/DamiaUI/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/korallis/DamiaUI/discussions)
+- **Documentation**: [Wiki Pages](https://github.com/korallis/DamiaUI/wiki)
 
 ## Contributing
 
-This is currently in active rebuild. The focus is on getting core functionality working before accepting contributions.
+We welcome contributions! Please see our [Contributing Guide](https://github.com/korallis/DamiaUI/blob/main/CONTRIBUTING.md) for details on:
+- Code style guidelines
+- Testing procedures  
+- Pull request process
+- Development setup
+
+## License
+
+DamiaUI is licensed under the MIT License. See the [LICENSE](LICENSE) file for full details.
+
+## Credits
+
+Built with:
+- [Ace3 Framework](https://www.wowace.com/projects/ace3) for configuration and database management
+- [oUF](https://github.com/oUF-wow/oUF) for unit frame functionality
+- [LibActionButton](https://github.com/Nevcairiel/LibActionButton-1.0) for action bar implementation
+- [Aurora](https://github.com/Gethe/Aurora) for UI skinning and theming
 
 ---
 
-**Remember**: Simple and working beats complex and broken every time.
+*DamiaUI: Clean interface, maximum focus.*
