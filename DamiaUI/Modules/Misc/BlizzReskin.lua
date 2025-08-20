@@ -211,7 +211,9 @@ function BlizzReskin:SetupMirrorTimers()
     frame:RegisterEvent('ADDON_LOADED')
 
     function frame:PLAYER_ENTERING_WORLD()
-        for i=1, MIRRORTIMER_NUMTIMERS do
+        -- MIRRORTIMER_NUMTIMERS may be nil in 11.2, default to 3
+        local numTimers = MIRRORTIMER_NUMTIMERS or 3
+        for i=1, numTimers do
             local type, value, maxvalue, scale, paused, text = GetMirrorTimerInfo(i)
             if(type ~= 'UNKNOWN') then
                 Spawn(type):Start(value, maxvalue, scale, paused, text)

@@ -54,12 +54,18 @@ function Tooltip:SetupTooltips()
     anchor:SetPoint("BOTTOMRIGHT", Minimap, "TOPRIGHT", 1, -6)
 
     local SetTemplate = function(f)
-        f:SetBackdrop({
-          bgFile = _TEXTURE, 
-          edgeFile = blankTex, 
-          tile = false, tileSize = 0, edgeSize = 1,})
-        f:SetBackdropColor(.2, .2, .2, .6)
-        f:SetBackdropBorderColor(0, 0, 0)
+        -- WoW 11.2 requires BackdropTemplate mixin for backdrop functions
+        if not f.SetBackdrop then
+            Mixin(f, BackdropTemplateMixin)
+        end
+        if f.SetBackdrop then
+            f:SetBackdrop({
+              bgFile = _TEXTURE, 
+              edgeFile = blankTex, 
+              tile = false, tileSize = 0, edgeSize = 1,})
+            f:SetBackdropColor(.2, .2, .2, .6)
+            f:SetBackdropBorderColor(0, 0, 0)
+        end
     end
 
     -- Update Tooltip Position
@@ -75,7 +81,9 @@ function Tooltip:SetupTooltips()
         if self:GetAnchorType() == "ANCHOR_CURSOR" then	
             if NeedBackdropBorderRefresh then
                 NeedBackdropBorderRefresh = false			
-                self:SetBackdropColor(.2, .2, .2, .6)
+                if self.SetBackdropColor then
+                    self:SetBackdropColor(.2, .2, .2, .6)
+                end
             end
         elseif self:GetAnchorType() == "ANCHOR_NONE" and InCombatLockdown() then
             self:Hide()
@@ -307,15 +315,19 @@ function Tooltip:SetupTooltips()
                 local quality = link and select(3, GetItemInfo(link))
                 if quality and quality >= 2 then
                     local r, g, b = GetItemQualityColor(quality)
-                    self:SetBackdropBorderColor(r, g, b)
+                    if self.SetBackdropBorderColor then
+                        self:SetBackdropBorderColor(r, g, b)
+                    end
                 else
                     healthBar:SetStatusBarColor(.6, .6, .6)
                 end
             end
         end
         
-        self:SetBackdropBorderColor(0, 0, 0)
-        if _G["DamiaUI_StatusBarBG"] then
+        if self.SetBackdropBorderColor then
+            self:SetBackdropBorderColor(0, 0, 0)
+        end
+        if _G["DamiaUI_StatusBarBG"] and _G["DamiaUI_StatusBarBG"].SetBackdropBorderColor then
             _G["DamiaUI_StatusBarBG"]:SetBackdropBorderColor(0, 0, 0)
         end
         

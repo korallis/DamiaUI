@@ -5,9 +5,16 @@
 
 local addonName, ns = ...
 
--- Check if cooldown addons are already loaded
-if IsAddOnLoaded("OmniCC") or IsAddOnLoaded("ncCooldown") then 
-    return 
+-- Check if cooldown addons are already loaded (11.2 compatible)
+if C_AddOns and C_AddOns.IsAddOnLoaded then
+    if C_AddOns.IsAddOnLoaded("OmniCC") or C_AddOns.IsAddOnLoaded("ncCooldown") then 
+        return 
+    end
+elseif IsAddOnLoaded then
+    -- Fallback for older versions
+    if IsAddOnLoaded("OmniCC") or IsAddOnLoaded("ncCooldown") then 
+        return 
+    end
 end
 
 local Cooldowns = {}

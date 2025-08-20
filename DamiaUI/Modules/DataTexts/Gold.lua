@@ -107,13 +107,17 @@ function Gold:CreateGoldFrame()
             GameTooltip:AddLine(' ')								
 
             -- Use WoW 11.2 compatible API for currency info
-            local numWatchedTokens = C_CurrencyInfo and C_CurrencyInfo.GetNumWatchedTokens() or GetNumWatchedTokens()
-            for i = 1, numWatchedTokens do
-                local name, count, extraCurrencyType, icon, itemID
+            -- In 11.2, backpack can track up to 3 currencies
+            local maxBackpackCurrencies = 3
+            for i = 1, maxBackpackCurrencies do
+                local name, count, icon, currencyID
                 if C_CurrencyInfo and C_CurrencyInfo.GetBackpackCurrencyInfo then
-                    name, count, extraCurrencyType, icon, itemID = C_CurrencyInfo.GetBackpackCurrencyInfo(i)
-                else
-                    name, count, extraCurrencyType, icon, itemID = GetBackpackCurrencyInfo(i)
+                    local info = C_CurrencyInfo.GetBackpackCurrencyInfo(i)
+                    if info then
+                        name, count, icon, currencyID = info.name, info.quantity, info.iconFileID, info.currencyTypesID
+                    end
+                elseif GetBackpackCurrencyInfo then
+                    name, count, _, icon, currencyID = GetBackpackCurrencyInfo(i)
                 end
                 
                 if name and i == 1 then
@@ -121,11 +125,10 @@ function Gold:CreateGoldFrame()
                     GameTooltip:AddLine(CURRENCY)
                 end
                 local r, g, b = 1, 1, 1
-                if itemID then 
-                    local itemInfo = C_Item and C_Item.GetItemInfo(itemID) or GetItemInfo(itemID)
-                    if itemInfo then
-                        r, g, b = GetItemQualityColor(select(3, itemInfo))
-                    end
+                if currencyID then 
+                    -- Currency items use currency ID, not item ID for quality
+                    -- Most currencies are white quality
+                    r, g, b = 1, 1, 1
                 end
                 if name and count then 
                     GameTooltip:AddDoubleLine(name, count, r, g, b, 1, 1, 1) 
