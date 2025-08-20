@@ -1,0 +1,114 @@
+MIT License
+
+Copyright (c) 2025 DamiaUI Development Team
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+ADDITIONAL TERMS FOR WORLD OF WARCRAFT ADDON DISTRIBUTION:
+
+This addon is developed for World of Warcraft and is subject to additional 
+terms when distributed through official addon platforms:
+
+1. PLATFORM DISTRIBUTION:
+   - CurseForge distribution follows Overwolf/CurseForge Terms of Service
+   - WoWInterface distribution follows WoWInterface Terms of Service
+   - Distribution on other platforms requires explicit permission
+
+2. THIRD-PARTY LIBRARIES:
+   This addon includes or depends on third-party libraries that are licensed
+   separately:
+   
+   - LibStub: Public Domain
+   - Ace3 Framework (AceAddon-3.0, AceConfig-3.0, AceDB-3.0, etc.): 
+     BSD 3-Clause License
+   - oUF (Unit Frame Framework): MIT License
+   - Aurora (UI Skinning Library): Custom License (included with permission)
+   - LibActionButton-1.0: LGPL 2.1 License
+   - LibDataBroker-1.1: LGPL 2.1 License
+   - CallbackHandler-1.0: LGPL 2.1 License
+
+3. WORLD OF WARCRAFT INTELLECTUAL PROPERTY:
+   - This addon is designed for World of Warcraft, a trademark of 
+     Blizzard Entertainment, Inc.
+   - All game assets, interfaces, and APIs are property of 
+     Blizzard Entertainment, Inc.
+   - This addon does not claim ownership of any Blizzard intellectual property
+   - Use of this addon is subject to World of Warcraft Terms of Service
+
+4. ATTRIBUTION REQUIREMENTS:
+   - Redistributions must include this license notice
+   - Credit to the DamiaUI Development Team must be preserved
+   - Links to original source (GitHub repository) should be maintained
+   - Third-party library credits must be preserved
+
+5. MODIFICATION AND FORKING:
+   - Source code modifications are permitted under MIT License terms
+   - Forks must clearly identify themselves as derivatives
+   - Commercial use requires consultation with original development team
+   - Substantial derivatives should use different addon names to avoid confusion
+
+6. WARRANTY AND LIABILITY:
+   - This addon is provided "as-is" without warranty
+   - Use at your own risk - always backup your WoW settings before installation
+   - The development team is not responsible for character data loss or 
+     game account issues
+   - Report bugs through official channels (GitHub Issues, Discord, Forums)
+
+7. DATA COLLECTION:
+   - This addon does not collect or transmit personal data
+   - Configuration data is stored locally in WoW's SavedVariables system
+   - No telemetry, analytics, or external data transmission occurs
+   - All data remains on the user's local machine
+
+================================================================================
+
+For questions about licensing or permissions, contact:
+- GitHub: https://github.com/damiaui/damiaui
+- Discord: https://discord.gg/damiaui
+- Email: licensing@damiaui.com
+
+================================================================================
+
+THIRD-PARTY LIBRARY LICENSES:
+
+Ace3 Framework (BSD 3-Clause):
+Copyright (c) 2007-2025, Ace3 Development Team
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without 
+modification, are permitted provided that the conditions of the BSD 3-Clause 
+license are met. Full license text available at:
+https://opensource.org/licenses/BSD-3-Clause
+
+oUF Framework (MIT License):
+Copyright (c) 2006-2025 p3lim <p@p3lim.net>
+Permission is hereby granted under MIT License terms.
+Full license text available at: https://opensource.org/licenses/MIT
+
+LibActionButton-1.0, LibDataBroker-1.1, CallbackHandler-1.0 (LGPL 2.1):
+Copyright (c) Various contributors
+These libraries are licensed under the GNU Lesser General Public License v2.1
+Full license text available at: https://www.gnu.org/licenses/lgpl-2.1.html
+
+================================================================================
+
+This license is effective as of the date of first publication and applies to 
+all versions of DamiaUI unless explicitly modified in future releases.

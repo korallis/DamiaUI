@@ -1,0 +1,20 @@
+# Ignore everything by default
+/*
+
+# But keep these folders
+!DamiaUI/
+!ColdUI60beta/
+
+# Also keep important root files
+!.gitignore
+!README.md
+!LICENSE
+
+# But still ignore these specific items even if they're in allowed folders
+.DS_Store
+*.swp
+*.tmp
+.idea/
+.vscode/
+node_modules/
+*.bak

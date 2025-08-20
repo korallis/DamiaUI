@@ -1,0 +1,13 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <!--
+        CallbackHandler-1.0 XML Loader
+        
+        CallbackHandler provides a simple framework for registering, firing, and managing callbacks
+        used by many Ace3 libraries and WoW addons for event handling.
+        
+        Compatible with WoW 11.2 (110200) and maintains backwards compatibility.
+    -->
+    
+    <Script file="CallbackHandler-1.0.lua"/>
+    
+</Ui>

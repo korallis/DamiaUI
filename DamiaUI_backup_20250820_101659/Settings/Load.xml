@@ -1,0 +1,17 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    
+    <!-- Settings System Loading Order -->
+    
+    <!-- 1. Load default settings structure -->
+    <Script file="Defaults.lua"/>
+    
+    <!-- 2. Load migration system -->
+    <Script file="Migration.lua"/>
+    
+    <!-- 3. Load settings configuration and management -->
+    <Script file="Config.lua"/>
+    
+    <!-- 4. Load interface panel -->
+    <Script file="InterfacePanel.lua"/>
+    
+</Ui>

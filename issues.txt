@@ -1,0 +1,83 @@
+1x DamiaUI/Libraries/LibStub/LibStub.lua:1: unexpected symbol near '404'
+
+
+Locals:
+
+1x DamiaUI/Core/Init.lua:9: attempt to call global 'GetAddOnMetadata' (a nil value)
+
+
+Locals:
+
+
+1x DamiaUI/Core/Config.lua:56: attempt to index field 'media' (a nil value)
+
+
+Locals:
+
+1x ...aceDamiaUI/Modules/ActionBars/ActionBars.lua:291: attempt to call method 'RegisterModule' (a nil value)
+
+
+Locals:
+
+1x DamiaUI/Modules/UnitFrames/Core.lua:381: attempt to call method 'RegisterModule' (a nil value)
+
+
+Locals:
+
+1x DamiaUI/Modules/Minimap/Minimap.lua:324: attempt to call method 'SetScript' (a nil value)
+
+
+Locals:
+
+1x DamiaUI/Modules/Chat/Chat.lua:417: attempt to call method 'RegisterModule' (a nil value)
+
+
+Locals:
+
+1x DamiaUI/Core/DisableBlizzard.lua:255: attempt to index field 'config' (a nil value)
+[DamiaUI/Core/DisableBlizzard.lua]:255: in function <DamiaUI/Core/DisableBlizzard.lua:253>
+
+Locals:
+(*temporary) = nil
+(*temporary) = nil
+(*temporary) = nil
+(*temporary) = nil
+(*temporary) = "attempt to index field 'config' (a nil value)"
+ns = <table> {
+ Minimap = <table> {
+ }
+ Chat = <table> {
+ }
+ UnitFrames = <table> {
+ }
+ ActionBars = <table> {
+ }
+ profiles = <table> {
+ }
+ name = "DamiaUI"
+ oUF = <table> {
+ }
+}
+f = Frame {
+}
+
+1x DamiaUI/Libraries/LibStub/LibStub.lua:1 DamiaUI/Libraries/LibStub/LibStub.lua:1: unexpected symbol near '404'
+
+1x DamiaUI/Libraries/CallbackHandler-1.0-8/CallbackHandler-1.0.xml:1 DamiaUI/Libraries/CallbackHandler-1.0/CallbackHandler-1.0.xml(1): error: syntax error
+
+1x DamiaUI/DamiaUI.toc:61 Error loading DamiaUI/Modules/ActionBars/Bar3.lua
+
+1x DamiaUI/DamiaUI.toc:62 Error loading DamiaUI/Modules/ActionBars/Bar4.lua
+
+1x DamiaUI/DamiaUI.toc:63 Error loading DamiaUI/Modules/ActionBars/Bar5.lua
+
+1x DamiaUI/DamiaUI.toc:64 Error loading DamiaUI/Modules/ActionBars/PetBar.lua
+
+1x DamiaUI/DamiaUI.toc:65 Error loading DamiaUI/Modules/ActionBars/StanceBar.lua
+
+1x DamiaUI/DamiaUI.toc:66 Error loading DamiaUI/Modules/ActionBars/ExtraBar.lua
+
+1x DamiaUI/DamiaUI.toc:67 Error loading DamiaUI/Modules/ActionBars/OverrideBar.lua
+
+1x DamiaUI/DamiaUI.toc:68 Error loading DamiaUI/Modules/ActionBars/Style.lua
+

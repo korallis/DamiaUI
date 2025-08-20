@@ -1,23 +1,98 @@
 ## Interface: 110200
-## Title: |cffCC8010DamiaUI|r
-## Notes: Clean, minimalistic UI replacement inspired by modern design
-## Version: 2.0.0-Phase2
-## Author: DamiaUI Team
+## Title: |cff00FF7FDamiaUI|r
+## Notes: Clean, minimalist UI replacement 
+## Author: Damia
+## Version: 11.2.0
 ## SavedVariables: DamiaUIDB
-## X-Category: Interface Enhancements
-## X-Website: https://github.com/DamiaUI/DamiaUI
-## DefaultState: Enabled
+## SavedVariablesPerCharacter: DamiaUICharDB
+## IconTexture: Interface\Icons\INV_Misc_QuestionMark
+## Category: DamiaUI
+## X-Website: https://github.com/korallis/DamiaUI
+## X-License: MIT
 
-# Libraries
+# Core Libraries
 Libraries\LibStub\LibStub.lua
 Libraries\CallbackHandler-1.0\CallbackHandler-1.0.xml
 
-# Locales  
-Locales\enUS.lua
+# Ace3 Libraries (for configuration and database)
+Libraries\Ace3\LibStub\LibStub.lua
+Libraries\Ace3\CallbackHandler-1.0\CallbackHandler-1.0.xml
+Libraries\Ace3\AceAddon-3.0\AceAddon-3.0.xml
+Libraries\Ace3\AceEvent-3.0\AceEvent-3.0.xml
+Libraries\Ace3\AceTimer-3.0\AceTimer-3.0.xml
+Libraries\Ace3\AceBucket-3.0\AceBucket-3.0.xml
+Libraries\Ace3\AceHook-3.0\AceHook-3.0.xml
+Libraries\Ace3\AceDB-3.0\AceDB-3.0.xml
+Libraries\Ace3\AceDBOptions-3.0\AceDBOptions-3.0.xml
+Libraries\Ace3\AceLocale-3.0\AceLocale-3.0.xml
+Libraries\Ace3\AceConsole-3.0\AceConsole-3.0.xml
+Libraries\Ace3\AceGUI-3.0\AceGUI-3.0.xml
+Libraries\Ace3\AceConfig-3.0\AceConfig-3.0.xml
+Libraries\Ace3\AceComm-3.0\AceComm-3.0.xml
+Libraries\Ace3\AceTab-3.0\AceTab-3.0.xml
+Libraries\Ace3\AceSerializer-3.0\AceSerializer-3.0.xml
 
-# Core Module - Foundation
-Core\Load.xml
+# LibSharedMedia
+Libraries\LibSharedMedia-3.0\lib.xml
+
+# LibActionButton (for action bars)
+Libraries\LibActionButton-1.0\LibActionButton-1.0.lua
+Libraries\LibActionButton-1.0\LibButtonGlow-1.0\LibButtonGlow-1.0.lua
+
+# oUF (latest from GitHub for unit frames)
+Libraries\oUF\oUF.xml
+
+# rLib utilities
+Libraries\rLib\core\dragframe.lua
+Libraries\rLib\core\fader.lua
+Libraries\rLib\core\slashcmd.lua
+
+# Core
+Core\Init.lua
+Core\API.lua
+Core\Config.lua
+Core\Profiles.lua
+Core\Library.lua
+Core\DisableBlizzard.lua
 
 # Modules
-Modules\ActionBars.lua
-Modules\UnitFrames.lua
+Modules\ActionBars\ActionBars.lua
+Modules\ActionBars\Bar1.lua
+Modules\ActionBars\Bar2.lua
+Modules\ActionBars\Bar3.lua
+Modules\ActionBars\Bar4.lua
+Modules\ActionBars\Bar5.lua
+Modules\ActionBars\PetBar.lua
+Modules\ActionBars\StanceBar.lua
+Modules\ActionBars\ExtraBar.lua
+Modules\ActionBars\OverrideBar.lua
+Modules\ActionBars\Style.lua
+Modules\ActionBars\Drag.lua
+
+Modules\UnitFrames\Core.lua
+Modules\UnitFrames\Layout.lua
+Modules\UnitFrames\Player.lua
+Modules\UnitFrames\Target.lua
+Modules\UnitFrames\Party.lua
+Modules\UnitFrames\Raid.lua
+Modules\UnitFrames\Arena.lua
+Modules\UnitFrames\RuneBar.lua
+
+Modules\Minimap\Minimap.lua
+
+Modules\Chat\Chat.lua
+
+Modules\Nameplates\Nameplates.lua
+
+Modules\DataTexts\Time.lua
+Modules\DataTexts\Durability.lua
+Modules\DataTexts\Gold.lua
+Modules\DataTexts\System.lua
+
+Modules\Misc\ErrorHandler.lua
+Modules\Misc\BlizzReskin.lua
+Modules\Misc\Cooldowns.lua
+Modules\Misc\MicroMenu.lua
+Modules\Misc\Tooltip.lua
+Modules\Misc\RollFrame.lua
+Modules\Misc\LootFrame.lua

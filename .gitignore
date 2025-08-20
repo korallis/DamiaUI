@@ -1,8 +1,9 @@
-# Ignore everything except README.md and DamiaUI folder
-/*
+# Core files and folders
 !/README.md
 !/DamiaUI/
+!/DamiaUI-Plan/
 !/.gitignore
+!/LICENSE
 
 # OS Files
 .DS_Store

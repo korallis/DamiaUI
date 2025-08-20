@@ -1,488 +1,139 @@
---[[
-    DamiaUI - Target Unit Frame
-    Symmetrical target frame implementation with casting bar and threat detection
-    
-    Positioned at (200, -80) from screen center for optimal right-side placement
-    creating perfect symmetry with the player frame in the Damia UI layout.
-]]
+-- DamiaUI Target Unit Frame
+-- Based on oUF_Coldkil layout, updated for WoW 11.2
 
-local addonName = ...
-local DamiaUI = _G.DamiaUI
-if not DamiaUI then return end
+local addonName, ns = ...
+local oUF = ns.oUF or _G.oUF
+local UnitFrames = ns.UnitFrames
 
--- Local references for performance
-local _G = _G
-local UnitName, UnitLevel, UnitClassification = UnitName, UnitLevel, UnitClassification
-local UnitHealth, UnitHealthMax = UnitHealth, UnitHealthMax
-local UnitPower, UnitPowerMax, UnitPowerType = UnitPower, UnitPowerMax, UnitPowerType
-local UnitCanAttack, UnitPlayerControlled = UnitCanAttack, UnitPlayerControlled
-local UnitCreatureType, UnitCreatureFamily = UnitCreatureType, UnitCreatureFamily
-local UnitThreatSituation = UnitThreatSituation
-local CreateFrame = CreateFrame
-local GetTime = GetTime
-local InCombatLockdown = InCombatLockdown
-
--- Module dependencies
-local oUF = DamiaUI.Libraries.oUF
-local Aurora = DamiaUI.Libraries.Aurora
-local CombatLockdown = DamiaUI.CombatLockdown
-
---[[    
-    Safe target frame positioning with combat lockdown protection
---]]
-local function SafePositionTargetFrame(self)
-    if not self then return end
+-- Target frame layout (ColdUI style)
+function UnitFrames:CreateTargetFrame(self)
+    self:SetSize(200, 30)
     
-    local x, y = DamiaUI.UnitFrames.GetCenterPosition(TARGET_CONFIG.position.x, TARGET_CONFIG.position.y)
+    -- Health bar
+    local health = CreateFrame("StatusBar", nil, self)
+    health:SetAllPoints(self)
+    health:SetStatusBarTexture(ns.media.texture)
+    health.frequentUpdates = true
+    health.Smooth = true
+    health.colorClass = true
+    health.colorReaction = true
     
-    if CombatLockdown then
-        CombatLockdown:SafeSetPoint(self, "CENTER", UIParent, "BOTTOMLEFT", x, y)
-        CombatLockdown:SafeSetSize(self, TARGET_CONFIG.size.width, TARGET_CONFIG.size.height)
-        CombatLockdown:SafeSetScale(self, TARGET_CONFIG.scale)
-    else
-        if not InCombatLockdown() then
-            self:ClearAllPoints()
-            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x, y)
-            self:SetSize(TARGET_CONFIG.size.width, TARGET_CONFIG.size.height)
-            self:SetScale(TARGET_CONFIG.scale)
-        else
-            DamiaUI.Engine:LogWarning("Target frame positioning deferred due to combat lockdown")
-        end
-    end
-end
-
---[[
-    Safe target element updates with combat lockdown protection
---]]
-local function SafeUpdateTargetElements(self)
-    if not self then return end
+    -- Health background
+    health.bg = health:CreateTexture(nil, "BACKGROUND")
+    health.bg:SetAllPoints()
+    health.bg:SetTexture(ns.media.texture)
+    health.bg.multiplier = 0.3
     
-    if CombatLockdown then
-        CombatLockdown:SafeUpdateUnitFrames(function()
-            -- Update target-specific elements
-            if self.Castbar then
-                UpdateCastbar(self.Castbar, "target")
-            end
-            UpdateClassification(self, "target")
-            local status = UnitThreatSituation("player", "target")
-            UpdateThreat(self, "target", status)
-        end)
-    else
-        if not InCombatLockdown() then
-            if self.Castbar then
-                UpdateCastbar(self.Castbar, "target")
-            end
-            UpdateClassification(self, "target")
-            local status = UnitThreatSituation("player", "target")
-            UpdateThreat(self, "target", status)
-        end
-    end
-end
-
--- Target frame specific configuration
-local TARGET_CONFIG = {
-    position = { x = 200, y = -80 },
-    size = { width = 200, height = 50 },
-    scale = 1.0,
-    showCastbar = true,
-    showThreat = true,
-    showClassification = true,
-    showTooltipOnMouseover = true,
-    castbarHeight = 16,
-    threatColors = {
-        [0] = { r = 0.69, g = 0.69, b = 0.69 }, -- No threat (gray)
-        [1] = { r = 1.00, g = 1.00, b = 0.47 }, -- Low threat (yellow)
-        [2] = { r = 1.00, g = 0.60, b = 0.00 }, -- Medium threat (orange)  
-        [3] = { r = 1.00, g = 0.00, b = 0.00 }, -- High threat (red)
-    }
-}
-
---[[
-    Create target-specific elements
-    Adds casting bar, threat indicator, classification, and level display
-]]
-local function CreateTargetElements(self)
-    local scale = TARGET_CONFIG.scale
+    -- Health border
+    local healthBorder = CreateFrame("Frame", nil, health, "BackdropTemplate")
+    healthBorder:SetPoint("TOPLEFT", -1, 1)
+    healthBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    healthBorder:SetBackdrop({
+        edgeFile = ns.media.texture,
+        edgeSize = 1,
+    })
+    healthBorder:SetBackdropBorderColor(0, 0, 0, 1)
     
-    -- Level text with classification
-    local level = self.Health:CreateFontString(nil, "OVERLAY")
-    level:SetFont("Fonts\\FRIZQT__.TTF", 10 * scale, "OUTLINE")
-    level:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT", -4, 12)
-    level:SetTextColor(1, 1, 0)
-    level:SetJustifyH("RIGHT")
-    self.Level = level
+    -- Health text
+    health.value = health:CreateFontString(nil, "OVERLAY")
+    health.value:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    health.value:SetPoint("RIGHT", health, "RIGHT", -2, 0)
+    self:Tag(health.value, "[dead][offline][coldhp]")
     
-    -- Classification text (Elite, Rare, Boss, etc.)
-    local classification = self.Health:CreateFontString(nil, "OVERLAY") 
-    classification:SetFont("Fonts\\FRIZQT__.TTF", 8 * scale, "OUTLINE")
-    classification:SetPoint("RIGHT", level, "LEFT", -2, 0)
-    classification:SetTextColor(1, 0.5, 0)
-    classification:SetJustifyH("RIGHT")
-    self.Classification = classification
+    -- Power bar
+    local power = CreateFrame("StatusBar", nil, self)
+    power:SetPoint("TOPLEFT", health, "BOTTOMLEFT", 0, -1)
+    power:SetPoint("TOPRIGHT", health, "BOTTOMRIGHT", 0, -1)
+    power:SetHeight(5)
+    power:SetStatusBarTexture(ns.media.texture)
+    power.frequentUpdates = true
+    power.Smooth = true
+    power.colorPower = true
     
-    -- Threat indicator glow
-    local threat = self:CreateTexture(nil, "BACKGROUND")
-    threat:SetAllPoints(self)
-    threat:SetTexture("Interface\\ChatFrame\\ChatFrameBackground")
-    threat:SetBlendMode("ADD")
-    threat:SetAlpha(0)
-    self.ThreatIndicator = threat
+    -- Power background
+    power.bg = power:CreateTexture(nil, "BACKGROUND")
+    power.bg:SetAllPoints()
+    power.bg:SetTexture(ns.media.texture)
+    power.bg.multiplier = 0.3
     
-    -- Casting bar
-    if TARGET_CONFIG.showCastbar then
-        local castbar = CreateFrame("StatusBar", nil, self)
-        castbar:SetHeight(TARGET_CONFIG.castbarHeight * scale)
-        castbar:SetPoint("TOPLEFT", self.Power, "BOTTOMLEFT", 0, -4)
-        castbar:SetPoint("TOPRIGHT", self.Power, "BOTTOMRIGHT", 0, -4)
-        castbar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        castbar:SetStatusBarColor(1, 0.7, 0)
-        castbar:Hide()
-        
-        -- Castbar background
-        castbar.bg = castbar:CreateTexture(nil, "BORDER")
-        castbar.bg:SetAllPoints(castbar)
-        castbar.bg:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-        castbar.bg:SetVertexColor(0.1, 0.1, 0.1, 0.8)
-        
-        -- Cast name text
-        local castText = castbar:CreateFontString(nil, "OVERLAY")
-        castText:SetFont("Fonts\\FRIZQT__.TTF", 10 * scale, "OUTLINE")
-        castText:SetPoint("LEFT", castbar, "LEFT", 4, 0)
-        castText:SetTextColor(1, 1, 1)
-        castText:SetJustifyH("LEFT")
-        castbar.Text = castText
-        
-        -- Cast time text
-        local castTime = castbar:CreateFontString(nil, "OVERLAY")
-        castTime:SetFont("Fonts\\FRIZQT__.TTF", 9 * scale, "OUTLINE")
-        castTime:SetPoint("RIGHT", castbar, "RIGHT", -4, 0)
-        castTime:SetTextColor(1, 1, 1)
-        castTime:SetJustifyH("RIGHT")
-        castbar.Time = castTime
-        
-        -- Cast icon
-        local castIcon = castbar:CreateTexture(nil, "ARTWORK")
-        castIcon:SetSize(TARGET_CONFIG.castbarHeight * scale, TARGET_CONFIG.castbarHeight * scale)
-        castIcon:SetPoint("RIGHT", castbar, "LEFT", -4, 0)
-        castIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-        castbar.Icon = castIcon
-        
-        -- Shield for uninterruptible casts
-        local shield = castbar:CreateTexture(nil, "OVERLAY")
-        shield:SetSize(16 * scale, 16 * scale)
-        shield:SetPoint("CENTER", castIcon, "CENTER")
-        shield:SetTexture("Interface\\CastingBar\\UI-CastingBar-Arena-Shield")
-        shield:Hide()
-        castbar.Shield = shield
-        
-        self.Castbar = castbar
-        
-        -- Apply Aurora styling to castbar
-        if Aurora and Aurora.CreateBorder then
-            Aurora.CreateBorder(castbar, 6)
-            if Aurora.Skin and Aurora.Skin.StatusBarWidget then
-                Aurora.Skin.StatusBarWidget(castbar)
-            end
-        end
+    -- Power border
+    local powerBorder = CreateFrame("Frame", nil, power, "BackdropTemplate")
+    powerBorder:SetPoint("TOPLEFT", -1, 1)
+    powerBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+    powerBorder:SetBackdrop({
+        edgeFile = ns.media.texture,
+        edgeSize = 1,
+    })
+    powerBorder:SetBackdropBorderColor(0, 0, 0, 1)
+    
+    -- Name
+    local name = health:CreateFontString(nil, "OVERLAY")
+    name:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    name:SetPoint("LEFT", health, "LEFT", 2, 0)
+    self:Tag(name, "[difficulty][level][shortclassification] [name]")
+    
+    -- Buffs
+    local buffs = CreateFrame("Frame", nil, self)
+    buffs:SetPoint("BOTTOMLEFT", self, "TOPLEFT", 0, 2)
+    buffs:SetSize(200, 20)
+    buffs.size = 20
+    buffs.spacing = 2
+    buffs.num = 8
+    buffs["growth-x"] = "RIGHT"
+    buffs["growth-y"] = "UP"
+    buffs.initialAnchor = "BOTTOMLEFT"
+    buffs.PostCreateIcon = function(buffs, button)
+        button.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        ns:CreateBackdrop(button)
     end
     
-    return self
-end
-
---[[
-    Update target classification display
-]]
-local function UpdateClassification(self, unit)
-    if unit ~= "target" or not self.Classification then return end
-    
-    local classification = UnitClassification(unit)
-    local level = UnitLevel(unit)
-    local text = ""
-    
-    if classification == "worldboss" then
-        text = "Boss"
-        self.Classification:SetTextColor(1, 0, 0) -- Red
-    elseif classification == "rareelite" then
-        text = "Rare Elite"
-        self.Classification:SetTextColor(1, 0.5, 1) -- Pink
-    elseif classification == "rare" then
-        text = "Rare"
-        self.Classification:SetTextColor(1, 0.5, 1) -- Pink
-    elseif classification == "elite" then
-        text = "Elite"
-        self.Classification:SetTextColor(1, 1, 0) -- Yellow
+    -- Debuffs
+    local debuffs = CreateFrame("Frame", nil, self)
+    debuffs:SetPoint("TOPLEFT", self, "BOTTOMLEFT", 0, -2)
+    debuffs:SetSize(200, 20)
+    debuffs.size = 20
+    debuffs.spacing = 2
+    debuffs.num = 8
+    debuffs["growth-x"] = "RIGHT"
+    debuffs["growth-y"] = "DOWN"
+    debuffs.initialAnchor = "TOPLEFT"
+    debuffs.onlyShowPlayer = true
+    debuffs.PostCreateIcon = function(debuffs, button)
+        button.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        ns:CreateBackdrop(button)
     end
     
-    self.Classification:SetText(text)
-end
-
---[[
-    Update threat indicator with smooth color transitions
-]]
-local function UpdateThreat(self, unit, status)
-    if unit ~= "target" or not self.ThreatIndicator then return end
+    -- Castbar
+    local castbar = CreateFrame("StatusBar", nil, self)
+    castbar:SetSize(200, 20)
+    castbar:SetPoint("TOP", self, "BOTTOM", 0, -25)
+    castbar:SetStatusBarTexture(ns.media.texture)
+    castbar:SetStatusBarColor(0.7, 0.3, 0.3)
     
-    local color = TARGET_CONFIG.threatColors[status or 0]
-    if color then
-        self.ThreatIndicator:SetVertexColor(color.r, color.g, color.b)
-        
-        -- Animate threat changes
-        if status and status > 1 then
-            self.ThreatIndicator:SetAlpha(0.3)
-            -- Could add pulsing animation here
-        else
-            self.ThreatIndicator:SetAlpha(0)
-        end
-    end
-end
-
---[[
-    Enhanced castbar update with interrupt detection and spell priority
-]]
-local function UpdateCastbar(castbar, unit)
-    if unit ~= "target" then return end
+    -- Castbar background
+    castbar.bg = castbar:CreateTexture(nil, "BACKGROUND")
+    castbar.bg:SetAllPoints()
+    castbar.bg:SetTexture(ns.media.texture)
+    castbar.bg:SetVertexColor(0.1, 0.1, 0.1, 0.7)
     
-    local name, text, texture, startTime, endTime, isTradeSkill, castID, notInterruptible = UnitCastingInfo(unit)
-    local isChanneling = false
+    -- Castbar border
+    ns:CreateBackdrop(castbar)
     
-    if not name then
-        -- Check for channeling
-        name, text, texture, startTime, endTime, isTradeSkill, notInterruptible = UnitChannelInfo(unit)
-        isChanneling = true
-    end
+    -- Castbar text
+    castbar.Text = castbar:CreateFontString(nil, "OVERLAY")
+    castbar.Text:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    castbar.Text:SetPoint("LEFT", castbar, "LEFT", 2, 0)
     
-    if name then
-        castbar:Show()
-        castbar.Text:SetText(text or name)
-        
-        if texture and castbar.Icon then
-            castbar.Icon:SetTexture(texture)
-            castbar.Icon:Show()
-        end
-        
-        -- Show shield for uninterruptible casts
-        if castbar.Shield then
-            if notInterruptible then
-                castbar.Shield:Show()
-            else
-                castbar.Shield:Hide()
-            end
-        end
-        
-        -- Update cast time with better formatting
-        if startTime and endTime and castbar.Time then
-            local currentTime = GetTime() * 1000
-            local timeLeft = (endTime - currentTime) / 1000
-            local totalTime = (endTime - startTime) / 1000
-            
-            if timeLeft > 0 then
-                if isChanneling then
-                    castbar.Time:SetText(string.format("%.1f / %.1f", timeLeft, totalTime))
-                else
-                    castbar.Time:SetText(string.format("%.1f", timeLeft))
-                end
-                
-                -- Update progress bar
-                local progress = 1 - (timeLeft / totalTime)
-                if isChanneling then
-                    progress = timeLeft / totalTime
-                end
-                castbar:SetValue(progress)
-            end
-        end
-        
-        -- Enhanced color coding based on spell importance
-        if notInterruptible then
-            castbar:SetStatusBarColor(0.7, 0.7, 0.7) -- Gray for uninterruptible
-        elseif IsImportantSpell(name) then
-            castbar:SetStatusBarColor(1, 0.2, 0.2) -- Red for important/dangerous spells
-        else
-            castbar:SetStatusBarColor(1, 0.7, 0) -- Orange for normal interruptible
-        end
-        
-        -- Add pulsing effect for important casts
-        if IsImportantSpell(name) and not notInterruptible then
-            if not castbar.pulseAnim then
-                local animGroup = castbar:CreateAnimationGroup()
-                local fadeOut = animGroup:CreateAnimation("Alpha")
-                fadeOut:SetFromAlpha(1.0)
-                fadeOut:SetToAlpha(0.6)
-                fadeOut:SetDuration(0.5)
-                fadeOut:SetOrder(1)
-                
-                local fadeIn = animGroup:CreateAnimation("Alpha")
-                fadeIn:SetFromAlpha(0.6)
-                fadeIn:SetToAlpha(1.0)
-                fadeIn:SetDuration(0.5)
-                fadeIn:SetOrder(2)
-                
-                animGroup:SetLooping("REPEAT")
-                castbar.pulseAnim = animGroup
-            end
-            castbar.pulseAnim:Play()
-        else
-            if castbar.pulseAnim then
-                castbar.pulseAnim:Stop()
-            end
-        end
-    else
-        castbar:Hide()
-        if castbar.pulseAnim then
-            castbar.pulseAnim:Stop()
-        end
-    end
-end
-
---[[
-    Check if a spell is considered important/dangerous
-]]
-local function IsImportantSpell(spellName)
-    if not spellName then return false end
+    -- Castbar time
+    castbar.Time = castbar:CreateFontString(nil, "OVERLAY")
+    castbar.Time:SetFont(ns.media.font, 11, "OUTLINE, MONOCHROME")
+    castbar.Time:SetPoint("RIGHT", castbar, "RIGHT", -2, 0)
     
-    local importantSpells = {
-        -- Healing spells
-        ["Heal"] = true,
-        ["Greater Heal"] = true,
-        ["Flash Heal"] = true,
-        ["Healing Wave"] = true,
-        ["Chain Heal"] = true,
-        ["Holy Light"] = true,
-        ["Flash of Light"] = true,
-        ["Regrowth"] = true,
-        ["Healing Touch"] = true,
-        
-        -- Crowd control
-        ["Polymorph"] = true,
-        ["Fear"] = true,
-        ["Banish"] = true,
-        ["Cyclone"] = true,
-        ["Hibernate"] = true,
-        ["Hex"] = true,
-        
-        -- High damage spells
-        ["Pyroblast"] = true,
-        ["Greater Fireball"] = true,
-        ["Chain Lightning"] = true,
-        ["Mind Blast"] = true,
-        ["Shadow Bolt"] = true,
-        ["Soul Burn"] = true
-    }
-    
-    return importantSpells[spellName] or false
-end
-
---[[
-    Target frame health update with threat-aware coloring
-]]
-local function UpdateTargetHealth(health, unit, min, max)
-    if unit ~= "target" then return end
-    
-    local frame = health.__owner
-    if not frame or not frame.HealthValue then return end
-    
-    -- Format health values
-    local healthText
-    if max > 999999 then
-        healthText = string.format("%.1fM", max / 1000000)
-    elseif max > 999 then
-        healthText = string.format("%.0fk", max / 1000)
-    else
-        healthText = tostring(max)
-    end
-    
-    frame.HealthValue:SetText(healthText)
-    
-    -- Color health bar based on unit reaction
-    local r, g, b = 0.2, 0.8, 0.2 -- Default green
-    
-    if UnitCanAttack("player", unit) then
-        if UnitPlayerControlled(unit) then
-            r, g, b = 1, 0, 0 -- Red for hostile players
-        else
-            r, g, b = 1, 0.5, 0 -- Orange for hostile NPCs
-        end
-    elseif UnitPlayerControlled(unit) then
-        r, g, b = 0, 0.5, 1 -- Blue for friendly players
-    end
-    
-    health:SetStatusBarColor(r, g, b)
-end
-
---[[
-    Target frame layout function
-    Integrates with the main Damia layout while adding target-specific elements
-]]
-local function CreateTargetLayout(self, unit)
-    if unit ~= "target" then return end
-    
-    -- Apply base Damia layout
-    DamiaUI.UnitFrames.CreateDamiaLayout(self, unit)
-    
-    -- Add target-specific elements
-    CreateTargetElements(self)
-    
-    -- Register target-specific update functions
-    if self.Health then
-        self.Health.Override = UpdateTargetHealth
-    end
-    
-    -- Override threat update
-    self.UpdateThreatStatus = UpdateThreat
-    
-    -- Position the frame at target-specific coordinates (with combat lockdown protection)
-    SafePositionTargetFrame(self)
-    
-    -- Register events for target-specific updates
-    self:RegisterEvent("UNIT_CLASSIFICATION_CHANGED", UpdateClassification)
-    self:RegisterEvent("UNIT_THREAT_SITUATION_UPDATE", function(self, event, unit)
-        if unit == "target" then
-            local status = UnitThreatSituation("player", unit)
-            UpdateThreat(self, unit, status)
-        end
-    end)
-    
-    return self
-end
-
---[[
-    Target frame configuration access
-]]
-local function GetTargetConfig()
-    return TARGET_CONFIG
-end
-
-local function SetTargetConfig(key, value)
-    if TARGET_CONFIG[key] ~= nil then
-        TARGET_CONFIG[key] = value
-        -- Trigger frame update if needed (with combat lockdown protection)
-        local targetFrame = DamiaUI.UnitFrames:GetFrame("target")
-        if targetFrame then
-            if CombatLockdown then
-                CombatLockdown:SafeUpdateUnitFrames(function()
-                    DamiaUI.UnitFrames:RefreshFrame("target")
-                end)
-            else
-                if not InCombatLockdown() then
-                    DamiaUI.UnitFrames:RefreshFrame("target")
-                else
-                    DamiaUI.Engine:LogWarning("Target frame refresh deferred due to combat lockdown")
-                end
-            end
-        end
-    end
-end
-
--- Export target-specific functions (only if UnitFrames module exists)
-if DamiaUI.UnitFrames and type(DamiaUI.UnitFrames) == "table" then
-    DamiaUI.UnitFrames.Target = {
-        CreateLayout = CreateTargetLayout,
-        UpdateHealth = UpdateTargetHealth,
-        UpdateCastbar = UpdateCastbar,
-        UpdateThreat = UpdateThreat,
-        UpdateClassification = UpdateClassification,
-        GetConfig = GetTargetConfig,
-        SetConfig = SetTargetConfig,
-        SafePosition = SafePositionTargetFrame,
-        SafeUpdateElements = SafeUpdateTargetElements
-    }
+    -- Assign to self
+    self.Health = health
+    self.Power = power
+    self.Name = name
+    self.Buffs = buffs
+    self.Debuffs = debuffs
+    self.Castbar = castbar
 end
