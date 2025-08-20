@@ -20,6 +20,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare for packaging
+        run: |
+          # The packager needs the addon files in root directory
+          # Copy everything from DamiaUI subfolder to root
+          cp -r DamiaUI/* .
+          
       - name: Package and release
         uses: BigWigsMods/packager@v2
         with:
