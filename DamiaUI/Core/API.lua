@@ -424,9 +424,11 @@ function ns.CombatProtection.SafeCall(func, ...)
     end
     
     if InCombatLockdown() then
+        -- Capture varargs before closure (cannot use ... inside closures)
+        local args = {...}
         -- Queue for after combat
         table.insert(postCombatQueue, function()
-            func(...)
+            func(unpack(args))
         end)
         return false, "queued"
     else
@@ -443,9 +445,11 @@ function ns.CombatProtection.SafeFrameCall(frame, method, ...)
     end
     
     if InCombatLockdown() then
+        -- Capture varargs before closure (cannot use ... inside closures)
+        local args = {...}
         table.insert(postCombatQueue, function()
             if frame and frame[method] then
-                frame[method](frame, ...)
+                frame[method](frame, unpack(args))
             end
         end)
         return false, "queued"
@@ -600,7 +604,7 @@ local function trackAPICall(funcName)
 end
 
 -- Wrapped cached functions with call tracking (only in debug mode)
-if ns.debugMode then
+if ns.config and ns.config.debug then
     for funcName, func in pairs(ns.CachedAPI) do
         ns.CachedAPI[funcName] = function(...)
             trackAPICall(funcName)
@@ -782,8 +786,10 @@ end
 -- Safe mass frame operation
 function ns.SecureUtils.SafeMassFrameOperation(frames, operation, ...)
     if InCombatLockdown() then
+        -- Capture varargs before closure (cannot use ... inside closures)
+        local args = {...}
         table.insert(postCombatQueue, function()
-            ns.SecureUtils.SafeMassFrameOperation(frames, operation, ...)
+            ns.SecureUtils.SafeMassFrameOperation(frames, operation, unpack(args))
         end)
         return false, "queued"
     end
@@ -798,9 +804,111 @@ function ns.SecureUtils.SafeMassFrameOperation(frames, operation, ...)
     return true
 end
 
+-- Error Capture System for DamiaUI
+ns.ErrorCapture = ns.ErrorCapture or {}
+local errorLogs = {}
+local maxErrors = 100 -- Limit stored errors to prevent memory issues
+
+-- Enhanced error logging function
+function ns.ErrorCapture.LogError(source, error, stack)
+    local timestamp = date("%H:%M:%S")
+    local errorEntry = {
+        timestamp = timestamp,
+        source = source or "Unknown",
+        error = tostring(error or "Unknown error"),
+        stack = stack or debugstack(2, 1, 0),
+        count = 1
+    }
+    
+    -- Check if this is a duplicate error
+    for i = #errorLogs, math.max(1, #errorLogs - 10), -1 do
+        local existingError = errorLogs[i]
+        if existingError.source == errorEntry.source and existingError.error == errorEntry.error then
+            existingError.count = existingError.count + 1
+            existingError.timestamp = timestamp
+            return -- Don't add duplicate
+        end
+    end
+    
+    -- Add new error
+    table.insert(errorLogs, errorEntry)
+    
+    -- Trim old errors if we exceed the limit
+    if #errorLogs > maxErrors then
+        table.remove(errorLogs, 1)
+    end
+    
+    -- Output to chat if debug mode is enabled
+    if (ns.config and ns.config.debug) or ns.debugMode then
+        print("|cffff0000DamiaUI Error:|r " .. errorEntry.source .. " - " .. errorEntry.error)
+    end
+end
+
+-- Enhanced debug function that also logs errors
+function ns:Debug(msg, isError)
+    if (ns.config and ns.config.debug) or ns.debugMode then
+        local prefix = isError and "|cffff0000DamiaUI Error:|r " or "|cff00ff00DamiaUI:|r "
+        print(prefix .. tostring(msg))
+    end
+    
+    if isError then
+        ns.ErrorCapture.LogError("Debug", msg)
+    end
+end
+
+-- Enhanced pcall wrapper that logs errors
+function ns.ErrorCapture.SafeCall(func, source, ...)
+    if not func or type(func) ~= "function" then
+        ns.ErrorCapture.LogError(source or "SafeCall", "Invalid function provided")
+        return false, "Invalid function"
+    end
+    
+    local success, result = pcall(func, ...)
+    if not success then
+        ns.ErrorCapture.LogError(source or "SafeCall", result, debugstack(2, 1, 0))
+        return false, result
+    end
+    
+    return success, result
+end
+
+-- Get all captured errors
+function ns.ErrorCapture.GetErrors()
+    return errorLogs
+end
+
+-- Clear captured errors
+function ns.ErrorCapture.ClearErrors()
+    wipe(errorLogs)
+    print("|cff00ff00DamiaUI:|r Error log cleared.")
+end
+
+-- Get error count
+function ns.ErrorCapture.GetErrorCount()
+    return #errorLogs
+end
+
+-- Get recent errors (last N)
+function ns.ErrorCapture.GetRecentErrors(count)
+    count = count or 10
+    local recent = {}
+    for i = math.max(1, #errorLogs - count + 1), #errorLogs do
+        table.insert(recent, errorLogs[i])
+    end
+    return recent
+end
+
+-- Hook into Blizzard's error handler
+local originalErrorHandler = geterrorhandler()
+seterrorhandler(function(err)
+    ns.ErrorCapture.LogError("Blizzard", err, debugstack(2, 1, 0))
+    return originalErrorHandler(err)
+end)
+
 -- Print debug info
 ns:Debug("Enhanced API Compatibility Layer loaded for WoW 11.2")
 ns:Debug("Combat Protection: Enabled")
 ns:Debug("Secure Hooks: Enabled") 
 ns:Debug("Performance Caching: " .. (ns.CachedAPI and "Enabled" or "Disabled"))
 ns:Debug("Secure Frame Utils: Enabled")
+ns:Debug("Error Capture System: Enabled")

@@ -101,7 +101,6 @@ function Profiles:Initialize()
             profileHistory = {},
         },
         class = {},
-        spec = {},
         faction = {},
         realm = {},
     }
