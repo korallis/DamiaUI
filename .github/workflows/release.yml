@@ -20,9 +20,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy TOC file for packager
+      - name: Prepare for packaging
         run: |
-          cp DamiaUI/DamiaUI.toc DamiaUI.toc
+          # The packager needs the addon files in a specific structure
+          # Copy everything from DamiaUI subfolder to root temporarily
+          cp -r DamiaUI/* .
+          # Keep the original DamiaUI folder for proper packaging
           
       - name: Package and release
         uses: BigWigsMods/packager@v2

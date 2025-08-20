@@ -2,12 +2,9 @@ package-as: DamiaUI
 
 enable-nolib-creation: no
 
-move-folders:
-  DamiaUI: DamiaUI
-
 ignore:
   - .github
-  - .gitignore
+  - .gitignore  
   - .pkgmeta
   - README.md
   - LICENSE
@@ -17,3 +14,4 @@ ignore:
   - ".git"
   - ".gitmodules"
   - ".release"
+  - DamiaUI
