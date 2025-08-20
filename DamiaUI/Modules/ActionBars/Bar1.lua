@@ -5,7 +5,9 @@ local addonName, ns = ...
 local ActionBars = ns.ActionBars
 
 function ActionBars:CreateMainBar()
-    print("[DEBUG] CreateMainBar() called")
+    if ns.LogDebug then
+        ns:LogDebug("CreateMainBar() called")
+    end
     
     -- Create bar frame
     local bar = CreateFrame("Frame", "DamiaUIMainBar", UIParent, "SecureHandlerStateTemplate")
@@ -13,7 +15,9 @@ function ActionBars:CreateMainBar()
     local spacing = self.config.spacing or 0
     bar:SetSize(size * 12 + spacing * 11, size)
     
-    print("[DEBUG] Main bar created with size: " .. (size * 12 + spacing * 11) .. "x" .. size)
+    if ns.LogDebug then
+        ns:LogDebug("Main bar created with size: " .. (size * 12 + spacing * 11) .. "x" .. size)
+    end
     
     -- Position
     if self.config.mainbar and self.config.mainbar.pos then
@@ -26,10 +30,14 @@ function ActionBars:CreateMainBar()
     bar:SetScale(self.config.scale or 1)
     
     -- Create buttons
-    print("[DEBUG] Creating 12 action buttons for main bar")
+    if ns.LogDebug then
+        ns:LogDebug("Creating 12 action buttons for main bar")
+    end
     for i = 1, 12 do
         local button = self:CreateActionButton(i, bar, size)
-        print("[DEBUG] Button " .. i .. " created: " .. tostring(button ~= nil))
+        if ns.LogDebug then
+            ns:LogDebug("Button " .. i .. " created: " .. tostring(button ~= nil))
+        end
         
         -- Position buttons
         if i == 1 then
@@ -43,15 +51,23 @@ function ActionBars:CreateMainBar()
             self:SetupButtonEvents(button)
         end
         
-        -- Setup paging
-        button:SetAttribute("action", i)
+        -- Setup paging with combat lockdown check
+        if not InCombatLockdown() then
+            button:SetAttribute("action", i)
+        else
+            if ns.LogDebug then
+                ns:LogDebug("Skipping SetAttribute for button " .. i .. " - in combat")
+            end
+        end
         
         -- Force button visible
         button:Show()
         button:SetAlpha(1)
     end
     
-    print("[DEBUG] All 12 buttons created and positioned")
+    if ns.LogDebug then
+        ns:LogDebug("All 12 buttons created and positioned")
+    end
     
     -- Paging for main bar
     bar:SetAttribute("_onstate-page", [[
@@ -63,9 +79,17 @@ function ActionBars:CreateMainBar()
         end
     ]])
     
-    -- Register buttons for paging
-    for i = 1, 12 do
-        bar:SetFrameRef("button"..i, self.buttons[i])
+    -- Register buttons for paging with combat lockdown check
+    if not InCombatLockdown() then
+        for i = 1, 12 do
+            if self.buttons[i] then
+                bar:SetFrameRef("button"..i, self.buttons[i])
+            end
+        end
+    else
+        if ns.LogDebug then
+            ns:LogDebug("Skipping SetFrameRef - in combat lockdown")
+        end
     end
     
     -- Default paging conditions
@@ -155,8 +179,23 @@ function ActionBars:CreateMainBar()
         }
     end
     
-    -- Set paging
-    RegisterStateDriver(bar, "page", table.concat(paging, "; "))
+    -- Set paging with combat lockdown check
+    if not InCombatLockdown() then
+        local success, err = pcall(function()
+            RegisterStateDriver(bar, "page", table.concat(paging, "; "))
+        end)
+        if not success then
+            if ns.LogDebug then
+                ns:LogDebug("ERROR: Failed to register state driver: " .. tostring(err))
+            end
+        elseif ns.LogDebug then
+            ns:LogDebug("State driver registered successfully")
+        end
+    else
+        if ns.LogDebug then
+            ns:LogDebug("Skipping RegisterStateDriver - in combat lockdown")
+        end
+    end
     
     -- Make movable when not in combat
     ns:MakeMovable(bar, true)
@@ -171,7 +210,9 @@ function ActionBars:CreateMainBar()
     end
     self.bars.mainbar = bar
     
-    print("[DEBUG] Main bar completed and stored, visible: " .. tostring(bar:IsVisible()))
+    if ns.LogDebug then
+        ns:LogDebug("Main bar completed and stored, visible: " .. tostring(bar:IsVisible()))
+    end
     
     return bar
 end

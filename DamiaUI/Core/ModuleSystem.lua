@@ -3,6 +3,11 @@
 
 local addonName, ns = ...
 
+-- CRITICAL: Ensure ns.modules exists before anything else
+if not ns.modules then
+    ns.modules = {}
+end
+
 -- Module registry with metadata
 ns.moduleRegistry = {}
 ns.moduleLoadOrder = {}
@@ -27,17 +32,33 @@ local MODULE_DEPENDENCIES = {
     ["Skins"] = {"ActionBars", "UnitFrames", "Chat"},
 }
 
--- Enhanced module registration with dependency tracking
+-- Enhanced module registration with dependency tracking and error handling
 function ns:RegisterModule(name, module, dependencies)
     if not name or not module then
-        self:Debug("RegisterModule: Invalid module registration", name)
+        if ns.LogDebug then
+            ns:LogDebug("RegisterModule: Invalid module registration - name: " .. tostring(name) .. ", module: " .. tostring(module))
+        end
         return false
     end
     
-    -- Validate module structure
-    if not module.Initialize then
-        self:Debug("RegisterModule:", name, "missing Initialize function")
+    -- Enhanced module structure validation
+    if type(module) ~= "table" then
+        if ns.LogDebug then
+            ns:LogDebug("RegisterModule: " .. name .. " is not a table")
+        end
         return false
+    end
+    
+    if not module.Initialize then
+        if ns.LogDebug then
+            ns:LogDebug("RegisterModule: " .. name .. " missing Initialize function")
+        end
+        return false
+    end
+    
+    -- Ensure registry exists
+    if not ns.moduleRegistry then
+        ns.moduleRegistry = {}
     end
     
     -- Store module with metadata
@@ -46,10 +67,20 @@ function ns:RegisterModule(name, module, dependencies)
         dependencies = dependencies or MODULE_DEPENDENCIES[name] or {},
         status = "registered",
         initTime = 0,
+        registered = GetTime(),
     }
+    
+    -- Ensure modules table exists for backward compatibility
+    if not ns.modules then
+        ns.modules = {}
+    end
     
     -- Add to modules table for backward compatibility
     ns.modules[name] = module
+    
+    if ns.LogDebug then
+        ns:LogDebug("Module registered: " .. name .. " with " .. #(dependencies or MODULE_DEPENDENCIES[name] or {}) .. " dependencies")
+    end
     
     return true
 end
@@ -149,12 +180,26 @@ local function InitializeModule(name)
     end
 end
 
--- Initialize all modules in dependency order
+-- Initialize all modules in dependency order with enhanced error handling
 function ns:InitializeModules()
-    ns:Debug("Starting module initialization")
+    if ns.LogDebug then
+        ns:LogDebug("Starting module initialization")
+        ns:LogDebug("Available modules: " .. table.concat(ns:GetModuleNames(), ", "))
+    end
+    
+    -- Ensure we have modules to initialize
+    if not ns.moduleRegistry or next(ns.moduleRegistry) == nil then
+        if ns.LogDebug then
+            ns:LogDebug("ERROR: No modules registered in moduleRegistry")
+        end
+        return 0, 0
+    end
     
     -- Build dependency-resolved load order
     local loadOrder = BuildLoadOrder()
+    if ns.LogDebug then
+        ns:LogDebug("Module load order: " .. table.concat(loadOrder, ", "))
+    end
     
     -- Initialize modules in order
     local initialized = 0
@@ -162,10 +207,23 @@ function ns:InitializeModules()
     
     for _, name in ipairs(loadOrder) do
         if ns.moduleRegistry[name] then
+            if ns.LogDebug then
+                ns:LogDebug("Attempting to initialize module: " .. name)
+            end
             if InitializeModule(name) then
                 initialized = initialized + 1
+                if ns.LogDebug then
+                    ns:LogDebug("Module " .. name .. " initialized successfully")
+                end
             else
                 failed = failed + 1
+                if ns.LogDebug then
+                    ns:LogDebug("Module " .. name .. " failed to initialize")
+                end
+            end
+        else
+            if ns.LogDebug then
+                ns:LogDebug("WARNING: Module " .. name .. " not found in registry")
             end
         end
     end
@@ -180,9 +238,15 @@ function ns:InitializeModules()
         for name, reg in pairs(ns.moduleRegistry) do
             if reg.status == "pending" then
                 pendingFound = true
+                if ns.LogDebug then
+                    ns:LogDebug("Retrying pending module: " .. name .. " (attempt " .. (retryCount + 1) .. ")")
+                end
                 if InitializeModule(name) then
                     initialized = initialized + 1
                     failed = failed - 1
+                    if ns.LogDebug then
+                        ns:LogDebug("Module " .. name .. " initialized on retry")
+                    end
                 end
             end
         end
@@ -191,7 +255,21 @@ function ns:InitializeModules()
         retryCount = retryCount + 1
     end
     
-    ns:Debug("Module initialization complete:", initialized, "loaded,", failed, "failed")
+    if ns.LogDebug then
+        ns:LogDebug("Module initialization complete: " .. initialized .. " loaded, " .. failed .. " failed")
+    end
+    
+    -- Report any remaining failed modules
+    if failed > 0 then
+        if ns.LogDebug then
+            ns:LogDebug("Failed modules:")
+            for name, reg in pairs(ns.moduleRegistry) do
+                if reg.status == "error" or reg.status == "pending" then
+                    ns:LogDebug("  " .. name .. ": " .. reg.status)
+                end
+            end
+        end
+    end
     
     -- Report status
     return initialized, failed

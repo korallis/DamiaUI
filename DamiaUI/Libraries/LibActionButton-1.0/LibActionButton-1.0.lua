@@ -1462,11 +1462,19 @@ function UpdateNewAction(self)
 end
 
 -- Hook UpdateFlyout so we can use the blizzy templates
-hooksecurefunc("ActionButton_UpdateFlyout", function(self, ...)
-	if ButtonRegistry[self] then
-		UpdateFlyout(self)
+-- Check if the function exists before hooking (removed in 11.2)
+if ActionButton_UpdateFlyout then
+	hooksecurefunc("ActionButton_UpdateFlyout", function(self, ...)
+		if ButtonRegistry[self] then
+			UpdateFlyout(self)
+		end
+	end)
+else
+	-- Log for diagnostic purposes
+	if DEFAULT_CHAT_FRAME then
+		DEFAULT_CHAT_FRAME:AddMessage("|cffff9900DamiaUI Debug:|r ActionButton_UpdateFlyout not found (expected in 11.2)")
 	end
-end)
+end
 
 function UpdateFlyout(self)
 	-- disabled FlyoutBorder/BorderShadow, those are not handled by LBF and look terrible

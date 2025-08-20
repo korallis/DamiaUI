@@ -3,10 +3,32 @@
 
 local addonName, ns = ...
 local oUF = ns.oUF
-if not oUF then return end
 
 local UnitFrames = {}
 ns.UnitFrames = UnitFrames
+
+-- Check for oUF availability with fallback
+if not oUF then
+    if ns.LogDebug then
+        ns:LogDebug("WARNING: oUF not found! Unit frames will be disabled")
+    end
+    
+    -- Create stub module that doesn't break the system
+    function UnitFrames:Initialize()
+        if ns.LogDebug then
+            ns:LogDebug("UnitFrames: oUF not available, skipping initialization")
+        end
+        return false
+    end
+    
+    -- Register the stub module and return early
+    ns:RegisterModule("UnitFrames", UnitFrames)
+    return
+else
+    if ns.LogDebug then
+        ns:LogDebug("oUF found and available for UnitFrames")
+    end
+end
 
 -- Configuration
 UnitFrames.config = {}
@@ -14,37 +36,55 @@ UnitFrames.units = {}
 
 -- Initialize module
 function UnitFrames:Initialize()
-    print("[DEBUG] UnitFrames:Initialize() called")
+    if ns.LogDebug then
+        ns:LogDebug("UnitFrames:Initialize() called")
+    end
     
     -- Get config
     self.config = ns.config.unitframes
-    print("[DEBUG] UnitFrames config: " .. tostring(self.config ~= nil))
+    if ns.LogDebug then
+        ns:LogDebug("UnitFrames config: " .. tostring(self.config ~= nil))
+    end
     
     if not self.config or not self.config.enabled then
-        print("[DEBUG] UnitFrames disabled or no config, returning")
+        if ns.LogDebug then
+            ns:LogDebug("UnitFrames disabled or no config, returning")
+        end
         return
     end
     
-    print("[DEBUG] UnitFrames enabled, proceeding...")
+    if ns.LogDebug then
+        ns:LogDebug("UnitFrames enabled, proceeding...")
+    end
     
     -- Register custom tags FIRST
     self:RegisterTags()
-    print("[DEBUG] Custom tags registered")
+    if ns.LogDebug then
+        ns:LogDebug("Custom tags registered")
+    end
     
     -- Register oUF style
     self:RegisterStyle()
-    print("[DEBUG] oUF style registered")
+    if ns.LogDebug then
+        ns:LogDebug("oUF style registered")
+    end
     
     -- Set active style
     oUF:SetActiveStyle("DamiaUI")
-    print("[DEBUG] Active style set to DamiaUI")
+    if ns.LogDebug then
+        ns:LogDebug("Active style set to DamiaUI")
+    end
     
     -- Spawn units
     self:SpawnUnits()
-    print("[DEBUG] Units spawned")
+    if ns.LogDebug then
+        ns:LogDebug("Units spawned")
+    end
     
-    print("[DEBUG] UnitFrames initialization completed")
-    ns:Print("Unit Frames module loaded")
+    if ns.LogDebug then
+        ns:LogDebug("UnitFrames initialization completed")
+        ns:LogDebug("Unit Frames module loaded")
+    end
 end
 
 -- Register oUF style
@@ -56,7 +96,9 @@ end
 
 -- Spawn all unit frames
 function UnitFrames:SpawnUnits()
-    print("[DEBUG] SpawnUnits called")
+    if ns.LogDebug then
+        ns:LogDebug("SpawnUnits called")
+    end
     
     oUF:SetActiveStyle("DamiaUI")
     
@@ -66,7 +108,9 @@ function UnitFrames:SpawnUnits()
         if player then
             player:SetPoint(unpack(self.config.player.pos or {"BOTTOMRIGHT", UIParent, "BOTTOM", -150, 260}))
             self.units.player = player
-            print("[DEBUG] Player frame spawned")
+            if ns.LogDebug then
+                ns:LogDebug("Player frame spawned")
+            end
         end
     end
     
@@ -76,7 +120,9 @@ function UnitFrames:SpawnUnits()
         if target then
             target:SetPoint(unpack(self.config.target.pos or {"BOTTOMLEFT", UIParent, "BOTTOM", 150, 260}))
             self.units.target = target
-            print("[DEBUG] Target frame spawned")
+            if ns.LogDebug then
+                ns:LogDebug("Target frame spawned")
+            end
         end
     end
     
@@ -86,7 +132,9 @@ function UnitFrames:SpawnUnits()
         if focus then
             focus:SetPoint(unpack(self.config.focus.pos or {"BOTTOMRIGHT", UIParent, "BOTTOM", -150, 320}))
             self.units.focus = focus
-            print("[DEBUG] Focus frame spawned")
+            if ns.LogDebug then
+                ns:LogDebug("Focus frame spawned")
+            end
         end
     end
     
@@ -95,7 +143,9 @@ function UnitFrames:SpawnUnits()
     if targettarget then
         targettarget:SetPoint("BOTTOMRIGHT", self.units.target or UIParent, "BOTTOMLEFT", -10, 0)
         self.units.targettarget = targettarget
-        print("[DEBUG] TargetTarget frame spawned")
+        if ns.LogDebug then
+            ns:LogDebug("TargetTarget frame spawned")
+        end
     end
     
     -- Pet frame
@@ -103,7 +153,9 @@ function UnitFrames:SpawnUnits()
     if pet then
         pet:SetPoint("BOTTOMLEFT", self.units.player or UIParent, "BOTTOMRIGHT", 10, 0)
         self.units.pet = pet
-        print("[DEBUG] Pet frame spawned")
+        if ns.LogDebug then
+            ns:LogDebug("Pet frame spawned")
+        end
     end
     
     -- Party frames
@@ -125,7 +177,9 @@ function UnitFrames:SpawnUnits()
         if party then
             party:SetPoint(unpack(self.config.party.pos or {"TOPLEFT", UIParent, "TOPLEFT", 20, -100}))
             self.units.party = party
-            print("[DEBUG] Party frames spawned")
+            if ns.LogDebug then
+                ns:LogDebug("Party frames spawned")
+            end
         end
     end
     
@@ -155,7 +209,9 @@ function UnitFrames:SpawnUnits()
         if raid then
             raid:SetPoint(unpack(self.config.raid.pos or {"TOPLEFT", UIParent, "TOPLEFT", 20, -200}))
             self.units.raid = raid
-            print("[DEBUG] Raid frames spawned")
+            if ns.LogDebug then
+                ns:LogDebug("Raid frames spawned")
+            end
         end
     end
     
@@ -173,10 +229,14 @@ function UnitFrames:SpawnUnits()
             end
         end
         self.units.arena = arena
-        print("[DEBUG] Arena frames spawned")
+        if ns.LogDebug then
+            ns:LogDebug("Arena frames spawned")
+        end
     end
     
-    print("[DEBUG] All unit frames spawned successfully")
+    if ns.LogDebug then
+        ns:LogDebug("All unit frames spawned successfully")
+    end
 end
 
 -- Setup frame based on unit
@@ -519,7 +579,9 @@ end
 
 -- Register custom tags
 function UnitFrames:RegisterTags()
-    print("[DEBUG] Registering custom oUF tags")
+    if ns.LogDebug then
+        ns:LogDebug("Registering custom oUF tags")
+    end
     
     -- Custom health tag
     oUF.Tags.Methods["damiaui:health"] = function(unit)
@@ -584,7 +646,9 @@ function UnitFrames:RegisterTags()
     end
     oUF.Tags.Events["damiaui:level"] = "UNIT_LEVEL UNIT_CLASSIFICATION_CHANGED"
     
-    print("[DEBUG] Custom tags registered successfully")
+    if ns.LogDebug then
+        ns:LogDebug("Custom tags registered successfully")
+    end
 end
 
 -- Setup events for unit-specific updates

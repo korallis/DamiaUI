@@ -59,7 +59,9 @@ function Minimap:Initialize()
     -- Setup mouse wheel zoom
     self:SetupMouseWheel()
     
-    ns:Print("Minimap module loaded")
+    if ns.LogDebug then
+        ns:LogDebug("Minimap module loaded")
+    end
 end
 
 -- Setup minimap
@@ -330,8 +332,8 @@ end
 function Minimap:SetupCoordinates()
     -- Check if coordinate APIs are available
     if not C_Map or not C_Map.GetBestMapForUnit or not C_Map.GetPlayerMapPosition then
-        if ns.debug then
-            print("DamiaUI: Map coordinate APIs not available")
+        if ns.LogDebug then
+            ns:LogDebug("Map coordinate APIs not available")
         end
         return
     end
@@ -515,8 +517,8 @@ function Minimap:SetupMouseWheel()
                     end)
                 end)
                 
-                if not success and ns.debug then
-                    print("DamiaUI: Error creating context menu: " .. tostring(err))
+                if not success and ns.LogDebug then
+                    ns:LogDebug("Error creating context menu: " .. tostring(err))
                 end
             else
                 -- Fallback for clients without modern Menu API
@@ -537,8 +539,8 @@ function Minimap:SetupMouseWheel()
                 success = pcall(function() GameTimeFrame:Click() end)
             end
             
-            if not success and ns.debug then
-                print("DamiaUI: Unable to toggle calendar")
+            if not success and ns.LogDebug then
+                ns:LogDebug("Unable to toggle calendar")
             end
         end
     end)

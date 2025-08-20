@@ -201,28 +201,38 @@ end
 
 -- Main disable function - called from Init.lua after config is loaded
 function ns:DisableBlizzardUI()
-    print("[DEBUG] DisableBlizzardUI called")
+    if ns.LogDebug then
+        ns:LogDebug("DisableBlizzardUI called")
+    end
     
     -- Ensure config exists
     if not ns.config then
-        print("[DEBUG] No config found, creating empty config")
+        if ns.LogDebug then
+            ns:LogDebug("No config found, creating empty config")
+        end
         ns.config = {}
     end
     
-    print("[DEBUG] Config available: " .. tostring(ns.config ~= nil))
-    if ns.config.actionbar then
-        print("[DEBUG] Actionbar config enabled: " .. tostring(ns.config.actionbar.enabled))
-    end
-    if ns.config.unitframes then
-        print("[DEBUG] Unitframes config enabled: " .. tostring(ns.config.unitframes.enabled))
+    if ns.LogDebug then
+        ns:LogDebug("Config available: " .. tostring(ns.config ~= nil))
+        if ns.config.actionbar then
+            ns:LogDebug("Actionbar config enabled: " .. tostring(ns.config.actionbar.enabled))
+        end
+        if ns.config.unitframes then
+            ns:LogDebug("Unitframes config enabled: " .. tostring(ns.config.unitframes.enabled))
+        end
     end
     
     -- Action bars - ALWAYS hide them for now to ensure they're gone
-    print("[DEBUG] Hiding Blizzard action bars")
+    if ns.LogDebug then
+        ns:LogDebug("Hiding Blizzard action bars")
+    end
     HideBlizzardFrames()
     
-    -- Unit frames - ALWAYS hide them for now to ensure they're gone  
-    print("[DEBUG] Hiding Blizzard unit frames")
+    -- Unit frames - ALWAYS hide them for now to ensure they're gone
+    if ns.LogDebug then
+        ns:LogDebug("Hiding Blizzard unit frames")
+    end
     DisableBlizzardUnitFrames()
     
     -- Hide Talking Head Frame
@@ -234,7 +244,9 @@ function ns:DisableBlizzardUI()
     -- Hide Alert Frames (optional)
     HideBlizzardFrame(AlertFrame)
     
-    print("[DEBUG] DisableBlizzardUI completed")
+    if ns.LogDebug then
+        ns:LogDebug("DisableBlizzardUI completed")
+    end
 end
 
 -- DO NOT call this here - it will be called from Init.lua after config is loaded

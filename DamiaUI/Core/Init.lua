@@ -6,8 +6,16 @@ _G.DamiaUI = ns
 
 -- Create main addon object
 ns.name = addonName
-ns.modules = {}
+-- CRITICAL FIX: Only initialize modules table if it doesn't exist
+-- Module files load before Init.lua and register themselves
+if not ns.modules then
+    ns.modules = {}
+end
 ns.config = {}
+
+-- Initialize debug log that persists to SavedVariables
+ns.debugLog = {}
+ns.debugLogIndex = 0
 
 -- Embed oUF properly (remove from global namespace)
 local oUF = _G.oUF
@@ -62,6 +70,65 @@ ns.colors = {
     }
 }
 
+-- Enhanced debug logging with fallback support
+function ns:LogDebug(message)
+    if not message then return end
+    
+    ns.debugLogIndex = (ns.debugLogIndex or 0) + 1
+    local timestamp = date("%H:%M:%S")
+    local logEntry = string.format("[%s] %s", timestamp, tostring(message))
+    
+    -- Ensure in-memory log exists
+    if not ns.debugLog then
+        ns.debugLog = {}
+    end
+    
+    -- Add to in-memory log
+    table.insert(ns.debugLog, logEntry)
+    
+    -- Keep only last 500 entries in memory
+    if #ns.debugLog > 500 then
+        table.remove(ns.debugLog, 1)
+    end
+    
+    -- Print to chat if debug mode is on (with multiple fallback checks)
+    local shouldPrint = false
+    if ns.config and ns.config.debug then
+        shouldPrint = true
+    elseif ns.debugMode then  -- Fallback for early init before config is loaded
+        shouldPrint = true
+    elseif not DamiaUIDB then  -- Very early init - show critical messages
+        shouldPrint = true
+    end
+    
+    if shouldPrint then
+        print("|cff00ff00[DamiaUI]|r " .. message)
+    end
+    
+    -- Write to SavedVariables if available
+    if DamiaUIDebugLog then
+        table.insert(DamiaUIDebugLog, logEntry)
+        -- Keep only last 1000 entries in saved log
+        if #DamiaUIDebugLog > 1000 then
+            table.remove(DamiaUIDebugLog, 1)
+        end
+    end
+    
+    -- Fallback for very early errors
+    if string.find(string.lower(message), "error") or string.find(string.lower(message), "fail") then
+        print("|cffff0000[DamiaUI ERROR]|r " .. message)
+    end
+end
+
+-- Get list of module names for debugging
+function ns:GetModuleNames()
+    local names = {}
+    for name in pairs(ns.modules or {}) do
+        table.insert(names, name)
+    end
+    return names
+end
+
 -- Create main frame
 local DamiaUIFrame = CreateFrame("Frame", "DamiaUIFrame", UIParent)
 DamiaUIFrame:RegisterEvent("ADDON_LOADED")
@@ -70,17 +137,18 @@ DamiaUIFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -- Initialize core systems
 function ns:InitializeCore()
-    print("[DEBUG] InitializeCore called")
+    ns:LogDebug("InitializeCore called")
+    ns:LogDebug("Registered modules at core init: " .. table.concat(ns:GetModuleNames(), ", "))
     
     -- Apply defaults first
-    print("[DEBUG] Calling InitializeDefaults()")
+    ns:LogDebug("Calling InitializeDefaults()")
     ns:InitializeDefaults()
-    print("[DEBUG] InitializeDefaults() completed")
+    ns:LogDebug("InitializeDefaults() completed")
     
     -- Initialize profile system after defaults are available
-    print("[DEBUG] Calling InitializeProfiles()")
+    ns:LogDebug("Calling InitializeProfiles()")
     ns:InitializeProfiles()
-    print("[DEBUG] InitializeProfiles() completed")
+    ns:LogDebug("InitializeProfiles() completed")
     
     -- Update profile defaults now that configDefaults is available
     if ns.Profiles and ns.Profiles.initialized then
@@ -88,90 +156,119 @@ function ns:InitializeCore()
     end
     
     -- Load configuration AFTER defaults are set and profiles initialized
-    print("[DEBUG] Calling LoadConfig()")
+    ns:LogDebug("Calling LoadConfig()")
     ns:LoadConfig()
-    print("[DEBUG] LoadConfig() completed")
+    ns:LogDebug("LoadConfig() completed")
     
     -- Apply configuration to ensure ns.config is populated
-    print("[DEBUG] Calling ApplyConfig()")
+    ns:LogDebug("Calling ApplyConfig()")
     ns:ApplyConfig()
-    print("[DEBUG] ApplyConfig() completed")
+    ns:LogDebug("ApplyConfig() completed")
 end
 
--- Event handler
+-- Event handler with proper sequencing and error handling
 DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
-    print("[DEBUG] Event received: " .. event)
     if event == "ADDON_LOADED" then
         local addon = ...
-        print("[DEBUG] ADDON_LOADED for: " .. tostring(addon))
         if addon == addonName then
-            print("[DEBUG] DamiaUI ADDON_LOADED event processing...")
-            -- Just set up saved variables
-            DamiaUIDB = DamiaUIDB or {}
-            DamiaUICharDB = DamiaUICharDB or {}
-            DamiaUIProfileDB = DamiaUIProfileDB or {}
-            print("[DEBUG] Saved variables initialized")
+            -- Wrap SavedVariables initialization in pcall
+            local success, err = pcall(function()
+                -- Initialize saved variables including debug log
+                DamiaUIDB = DamiaUIDB or {}
+                DamiaUICharDB = DamiaUICharDB or {}
+                DamiaUIProfileDB = DamiaUIProfileDB or {}
+                DamiaUIDebugLog = DamiaUIDebugLog or {}
+                
+                ns:LogDebug("DamiaUI ADDON_LOADED - SavedVariables initialized")
+                ns:LogDebug("Modules registered at ADDON_LOADED: " .. table.concat(ns:GetModuleNames(), ", "))
+                
+                -- Initialize core systems after SavedVariables are ready
+                ns:LogDebug("Initializing core...")
+                ns:InitializeCore()
+                ns:LogDebug("Core initialization completed")
+                
+                -- Setup slash commands after core is initialized
+                ns:LogDebug("Setting up slash commands")
+                ns:SetupSlashCommands()
+                ns:LogDebug("Slash commands setup completed")
+                
+                -- Verify slash commands were registered
+                if SLASH_DAMIAUI1 and SLASH_DAMIAUI2 then
+                    ns:LogDebug("Slash commands verified: " .. SLASH_DAMIAUI1 .. ", " .. SLASH_DAMIAUI2)
+                else
+                    ns:LogDebug("ERROR: Slash commands not registered properly")
+                end
+            end)
+            
+            if not success then
+                print("|cffFF0000DamiaUI ADDON_LOADED Error:|r " .. tostring(err))
+                if ns.ErrorCapture and ns.ErrorCapture.LogError then
+                    ns.ErrorCapture.LogError("ADDON_LOADED", err, debugstack())
+                end
+            end
             
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
-        print("[DEBUG] PLAYER_LOGIN event - initializing addon")
-        
-        -- Initialize core systems after game systems are ready
-        print("[DEBUG] Initializing core...")
-        ns:InitializeCore()
-        print("[DEBUG] Core initialization completed")
-        
-        -- Use deferred initialization for UI modifications
-        C_Timer.After(0, function()
-            print("[DEBUG] Starting deferred initialization...")
+        -- Wrap module initialization in pcall
+        local success, err = pcall(function()
+            ns:LogDebug("PLAYER_LOGIN event - starting module initialization")
+            ns:LogDebug("Modules registered at PLAYER_LOGIN: " .. table.concat(ns:GetModuleNames(), ", "))
             
             -- Hide Blizzard UI first
-            print("[DEBUG] Disabling Blizzard UI...")
+            ns:LogDebug("Disabling Blizzard UI...")
             ns:DisableBlizzardUI()
-            print("[DEBUG] Blizzard UI disabled")
+            ns:LogDebug("Blizzard UI disabled")
             
-            -- Initialize modules after UI is hidden
-            print("[DEBUG] Starting module initialization...")
-            ns:InitializeModules()
-            print("[DEBUG] Module initialization completed")
-            
-            -- Setup slash commands
-            print("[DEBUG] Setting up slash commands")
-            ns:SetupSlashCommands()
-            print("[DEBUG] Slash commands setup completed")
+            -- Initialize modules using ModuleSystem
+            ns:LogDebug("Starting module initialization...")
+            local initialized, failed = ns:InitializeModules()
+            ns:LogDebug("Module initialization completed: " .. initialized .. " loaded, " .. failed .. " failed")
             
             -- Initialize configuration GUI (if it exists)
-            print("[DEBUG] Checking for configuration system")
+            ns:LogDebug("Checking for configuration system")
             if ns.InitializeConfig then
-                print("[DEBUG] Initializing configuration system")
+                ns:LogDebug("Initializing configuration system")
                 ns:InitializeConfig()
-                print("[DEBUG] Configuration system initialized")
+                ns:LogDebug("Configuration system initialized")
             else
-                print("[DEBUG] Configuration system not yet implemented")
+                ns:LogDebug("Configuration system not yet implemented")
             end
             
             -- Final status report
-            print("|cff00FF7FDamiaUI|r v" .. ns.version .. " loaded successfully!")
-            print("[DEBUG] FINAL STATUS:")
+            if ns.config and ns.config.debug then
+                print("|cff00FF7FDamiaUI|r v" .. ns.version .. " loaded successfully!")
+            end
+            ns:LogDebug("FINAL STATUS:")
             local moduleCount = 0
             for _ in pairs(ns.modules or {}) do
                 moduleCount = moduleCount + 1
             end
-            print("[DEBUG] Total registered modules: " .. moduleCount)
+            ns:LogDebug("Total registered modules: " .. moduleCount)
             for name, module in pairs(ns.modules or {}) do
                 local status = (module.initialized and "INITIALIZED" or "NOT INITIALIZED") .. ", " .. (module.enabled and "ENABLED" or "DISABLED")
-                print("[DEBUG] Module " .. name .. ": " .. status)
+                ns:LogDebug("Module " .. name .. ": " .. status)
             end
-            print("[DEBUG] All frames should now be visible. Check your UI!")
+            ns:LogDebug("All modules initialized. UI should be visible!")
         end)
+        
+        if not success then
+            print("|cffFF0000DamiaUI PLAYER_LOGIN Error:|r " .. tostring(err))
+            if ns.ErrorCapture and ns.ErrorCapture.LogError then
+                ns.ErrorCapture.LogError("PLAYER_LOGIN", err, debugstack())
+            end
+        end
+        
     elseif event == "PLAYER_ENTERING_WORLD" then
         local isInitialLogin, isReloadingUi = ...
         
         -- Update modules that need world info
         for name, module in pairs(ns.modules) do
             if module.UpdateOnWorldEnter then
-                module:UpdateOnWorldEnter(isInitialLogin, isReloadingUi)
+                local success, err = pcall(module.UpdateOnWorldEnter, module, isInitialLogin, isReloadingUi)
+                if not success then
+                    ns:LogDebug("Module " .. name .. " UpdateOnWorldEnter error: " .. tostring(err))
+                end
             end
         end
     end
@@ -179,7 +276,8 @@ end)
 
 -- Initialize defaults
 function ns:InitializeDefaults()
-    local defaults = {
+    -- Store defaults in ns for other modules to use
+    ns.configDefaults = {
         actionbar = {
             enabled = true,
             scale = 1,
@@ -314,7 +412,7 @@ function ns:InitializeDefaults()
             hideErrors = false,
             cooldownText = true,
         },
-        debug = true,  -- Enable debug mode by default
+        debug = false,  -- Disable debug mode by default
         dbmSkin = {
             enabled = true,
             leftIcon = true,
@@ -329,6 +427,8 @@ function ns:InitializeDefaults()
             timerJustifyH = "RIGHT",
         }
     }
+    
+    local defaults = ns.configDefaults
     
     -- Apply defaults to saved variables
     for key, value in pairs(defaults) do
@@ -360,20 +460,22 @@ end
 
 -- Initialize modules with comprehensive error recovery
 function ns:InitializeModules()
-    print("[DEBUG] InitializeModules called")
+    ns:LogDebug("InitializeModules called")
+    ns:LogDebug("Modules table exists: " .. tostring(ns.modules ~= nil))
+    ns:LogDebug("Number of registered modules: " .. tostring(ns.modules and #ns:GetModuleNames() or 0))
     
     -- Ensure config is loaded
     if not ns.config then
-        print("[DEBUG] Config not found, applying config")
+        ns:LogDebug("Config not found, applying config")
         ns:ApplyConfig()
     else
-        print("[DEBUG] Config is available")
+        ns:LogDebug("Config is available")
     end
     
     -- Debug: Show registered modules
-    print("[DEBUG] Registered modules:")
-    for name in pairs(ns.modules) do
-        print("[DEBUG]   - " .. name)
+    ns:LogDebug("Registered modules:")
+    for name in pairs(ns.modules or {}) do
+        ns:LogDebug("  - " .. name)
     end
     
     local initOrder = {"ActionBars", "UnitFrames", "Minimap"} -- Priority order
@@ -382,32 +484,32 @@ function ns:InitializeModules()
     
     -- Initialize priority modules first
     for _, moduleName in ipairs(initOrder) do
-        print("[DEBUG] Trying to initialize priority module: " .. moduleName)
+        ns:LogDebug("Trying to initialize priority module: " .. moduleName)
         local module = ns.modules[moduleName]
         if module then
-            print("[DEBUG] Module " .. moduleName .. " found, initializing...")
+            ns:LogDebug("Module " .. moduleName .. " found, initializing...")
             initializedModules[moduleName] = ns:InitializeSingleModule(moduleName, module)
             if not initializedModules[moduleName] then
                 failedModules[#failedModules + 1] = moduleName
-                print("[DEBUG] Module " .. moduleName .. " FAILED to initialize")
+                ns:LogDebug("Module " .. moduleName .. " FAILED to initialize")
             else
-                print("[DEBUG] Module " .. moduleName .. " initialized successfully")
+                ns:LogDebug("Module " .. moduleName .. " initialized successfully")
             end
         else
-            print("[DEBUG] Priority module " .. moduleName .. " NOT FOUND in registered modules")
+            ns:LogDebug("Priority module " .. moduleName .. " NOT FOUND in registered modules")
         end
     end
     
     -- Initialize remaining modules
-    for name, module in pairs(ns.modules) do
+    for name, module in pairs(ns.modules or {}) do
         if not initializedModules[name] then
-            print("[DEBUG] Trying to initialize remaining module: " .. name)
+            ns:LogDebug("Trying to initialize remaining module: " .. name)
             initializedModules[name] = ns:InitializeSingleModule(name, module)
             if not initializedModules[name] then
                 failedModules[#failedModules + 1] = name
-                print("[DEBUG] Module " .. name .. " FAILED to initialize")
+                ns:LogDebug("Module " .. name .. " FAILED to initialize")
             else
-                print("[DEBUG] Module " .. name .. " initialized successfully")
+                ns:LogDebug("Module " .. name .. " initialized successfully")
             end
         end
     end
@@ -418,7 +520,9 @@ function ns:InitializeModules()
         if success then successCount = successCount + 1 end
     end
     
-    ns:Print("Initialized " .. successCount .. " modules successfully")
+    if ns.LogDebug then
+        ns:LogDebug("Initialized " .. successCount .. " modules successfully")
+    end
     
     if #failedModules > 0 then
         ns:Print("|cffFFAA00Warning:|r " .. #failedModules .. " modules failed to initialize: " .. table.concat(failedModules, ", "))
@@ -432,20 +536,20 @@ end
 
 -- Initialize a single module with detailed error handling
 function ns:InitializeSingleModule(name, module)
-    print("[DEBUG] InitializeSingleModule called for: " .. name)
+    ns:LogDebug("InitializeSingleModule called for: " .. name)
     if not module then
-        print("[DEBUG] ERROR: Module " .. name .. " is nil")
+        ns:LogDebug("ERROR: Module " .. name .. " is nil")
         return false
     end
     
     -- Check if module is disabled in config
     if ns.config.modules and ns.config.modules[name] == false then
-        print("[DEBUG] Module " .. name .. " is disabled in config")
+        ns:LogDebug("Module " .. name .. " is disabled in config")
         module.initialized = false
         module.enabled = false
         return true -- Not an error, just disabled
     else
-        print("[DEBUG] Module " .. name .. " is enabled (or not explicitly disabled)")
+        ns:LogDebug("Module " .. name .. " is enabled (or not explicitly disabled)")
     end
     
     -- Validate module structure
@@ -469,14 +573,14 @@ function ns:InitializeSingleModule(name, module)
     
     local function initFunction()
         if module.Initialize then
-            print("[DEBUG] Calling Initialize() for module: " .. name)
+            ns:LogDebug("Calling Initialize() for module: " .. name)
             module:Initialize()
             module.initialized = true
             module.enabled = true
             initSuccess = true
-            print("[DEBUG] Initialize() completed for module: " .. name)
+            ns:LogDebug("Initialize() completed for module: " .. name)
         else
-            print("[DEBUG] Module " .. name .. " has no Initialize function")
+            ns:LogDebug("Module " .. name .. " has no Initialize function")
             module.initialized = true
             module.enabled = true
             initSuccess = true
@@ -486,13 +590,13 @@ function ns:InitializeSingleModule(name, module)
     -- Protected call with error capture
     local success, err = pcall(initFunction)
     
-    print("[DEBUG] pcall result for " .. name .. ": success=" .. tostring(success) .. ", initSuccess=" .. tostring(initSuccess))
+    ns:LogDebug("pcall result for " .. name .. ": success=" .. tostring(success) .. ", initSuccess=" .. tostring(initSuccess))
     if err then
-        print("[DEBUG] pcall error for " .. name .. ": " .. tostring(err))
+        ns:LogDebug("pcall error for " .. name .. ": " .. tostring(err))
     end
     
     if success and initSuccess then
-        print("[DEBUG] Module " .. name .. " initialized successfully")
+        ns:LogDebug("Module " .. name .. " initialized successfully")
         
         -- Post-initialization validation
         if module.PostInitialize then
@@ -506,7 +610,7 @@ function ns:InitializeSingleModule(name, module)
         return true
     else
         initError = err or "Unknown initialization error"
-        print("[DEBUG] INITIALIZATION FAILED for " .. name .. ": " .. initError)
+        ns:LogDebug("INITIALIZATION FAILED for " .. name .. ": " .. initError)
         ns:Print("|cffFF0000Error initializing " .. name .. ":|r " .. initError)
         
         -- Attempt graceful degradation
@@ -779,7 +883,9 @@ function ns:SetupSlashCommands()
         local cmd, rest = msg:match("^(%S*)%s*(.-)$")
         cmd = cmd:lower()
         
-        if cmd == "reset" then
+        if cmd == "debug" then
+            ns:HandleDebugCommand(rest)
+        elseif cmd == "reset" then
             DamiaUIDB = nil
             DamiaUICharDB = nil
             ReloadUI()
@@ -802,6 +908,7 @@ function ns:SetupSlashCommands()
             ns:HandleErrorCommand(rest)
         else
             print("|cff00FF7FDamiaUI|r Commands:")
+            print("  /dui debug [show|clear|export] - Debug log management")
             print("  /dui config - Open configuration panel")
             print("  /dui reset - Reset all settings")
             print("  /dui test - Test mode")
@@ -813,6 +920,232 @@ function ns:SetupSlashCommands()
             print("  /dui reload - Reload all modules")
         end
     end
+end
+
+-- Handle debug commands with improved output
+function ns:HandleDebugCommand(args)
+    local action = args:lower()
+    
+    if action == "" or action == "show" then
+        -- Enhanced debug output to chat with better formatting
+        ns:Print("=== DamiaUI Debug Log ===")
+        local logSource = DamiaUIDebugLog or ns.debugLog or {}
+        
+        if #logSource == 0 then
+            ns:Print("Debug log is empty")
+            -- Try to show some basic status if no logs
+            ns:Print("SavedVariables status:")
+            ns:Print("  DamiaUIDB: " .. tostring(DamiaUIDB ~= nil))
+            ns:Print("  DamiaUIDebugLog: " .. tostring(DamiaUIDebugLog ~= nil))
+        else
+            -- Show last 20 entries with better formatting
+            local startIdx = math.max(1, #logSource - 19)
+            ns:Print("Showing last " .. (#logSource - startIdx + 1) .. " debug entries:")
+            for i = startIdx, #logSource do
+                print("|cff00ff00[DEBUG]|r " .. tostring(logSource[i]))
+            end
+        end
+        
+        -- Show comprehensive module status
+        ns:Print("=== Module Status ===")
+        local moduleCount = 0
+        local initializedCount = 0
+        local enabledCount = 0
+        
+        for name, module in pairs(ns.modules or {}) do
+            moduleCount = moduleCount + 1
+            if module.initialized then initializedCount = initializedCount + 1 end
+            if module.enabled then enabledCount = enabledCount + 1 end
+            
+            local statusColor = "|cffff0000"  -- Red for failed
+            if module.initialized and module.enabled then
+                statusColor = "|cff00ff00"  -- Green for working
+            elseif module.initialized then
+                statusColor = "|cffffff00"  -- Yellow for init but disabled
+            end
+            
+            local status = string.format("%s%s|r: init=%s, enabled=%s",
+                statusColor,
+                name,
+                tostring(module.initialized),
+                tostring(module.enabled))
+            print(status)
+            
+            -- Show any errors
+            if module.lastError then
+                print("  |cffff0000Error:|r " .. tostring(module.lastError))
+            end
+        end
+        
+        ns:Print("Summary: " .. moduleCount .. " total, " .. initializedCount .. " initialized, " .. enabledCount .. " enabled")
+        
+        -- Show system status
+        ns:Print("=== System Status ===")
+        ns:Print("Config loaded: " .. tostring(ns.config ~= nil))
+        ns:Print("oUF available: " .. tostring(ns.oUF ~= nil))
+        ns:Print("Slash commands: " .. tostring(SLASH_DAMIAUI1 ~= nil))
+        
+    elseif action == "clear" then
+        if DamiaUIDebugLog then
+            DamiaUIDebugLog = {}
+        end
+        if ns.debugLog then
+            ns.debugLog = {}
+        end
+        ns:Print("Debug log cleared")
+        
+    elseif action == "export" then
+        ns:ShowDebugLog()
+        
+    elseif action == "verbose" then
+        -- Enable verbose debug mode
+        ns.debugMode = true
+        if ns.config then
+            ns.config.debug = true
+        end
+        ns:Print("Verbose debug mode enabled")
+        
+    elseif action == "quiet" then
+        -- Disable verbose debug mode
+        ns.debugMode = false
+        if ns.config then
+            ns.config.debug = false
+        end
+        ns:Print("Verbose debug mode disabled")
+        
+    else
+        ns:Print("Debug commands:")
+        ns:Print("  /dui debug show - Show debug log and status in chat")
+        ns:Print("  /dui debug clear - Clear debug log")
+        ns:Print("  /dui debug export - Open copyable debug window")
+        ns:Print("  /dui debug verbose - Enable verbose debug logging")
+        ns:Print("  /dui debug quiet - Disable verbose debug logging")
+    end
+end
+
+-- Show debug log in a copyable frame
+function ns:ShowDebugLog()
+    -- Create or reuse debug frame
+    local frame = _G.DamiaUIDebugFrame
+    if not frame then
+        frame = CreateFrame("Frame", "DamiaUIDebugFrame", UIParent, "BackdropTemplate")
+        frame:SetSize(800, 600)
+        frame:SetPoint("CENTER")
+        frame:SetFrameStrata("DIALOG")
+        frame:SetToplevel(true)
+        frame:SetBackdrop({
+            bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+            edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+            tile = true,
+            tileSize = 32,
+            edgeSize = 32,
+            insets = { left = 8, right = 8, top = 8, bottom = 8 }
+        })
+        frame:SetBackdropColor(0, 0, 0, 0.8)
+        frame:EnableMouse(true)
+        frame:SetMovable(true)
+        frame:RegisterForDrag("LeftButton")
+        frame:SetScript("OnDragStart", frame.StartMoving)
+        frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+        
+        -- Title
+        local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        title:SetPoint("TOP", frame, "TOP", 0, -16)
+        title:SetText("DamiaUI Debug Log")
+        
+        -- Close button
+        local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+        closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
+        closeButton:SetScript("OnClick", function() frame:Hide() end)
+        
+        -- Scroll frame
+        local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+        scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -40)
+        scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -32, 48)
+        frame.scrollFrame = scrollFrame
+        
+        -- Edit box
+        local editBox = CreateFrame("EditBox", nil, scrollFrame)
+        editBox:SetMultiLine(true)
+        editBox:SetAutoFocus(false)
+        editBox:SetFontObject(GameFontWhiteSmall)
+        editBox:SetWidth(scrollFrame:GetWidth())
+        editBox:SetScript("OnEscapePressed", function() frame:Hide() end)
+        editBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+        scrollFrame:SetScrollChild(editBox)
+        frame.editBox = editBox
+        
+        -- Select All button
+        local selectButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        selectButton:SetSize(100, 22)
+        selectButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 16, 16)
+        selectButton:SetText("Select All")
+        selectButton:SetScript("OnClick", function()
+            frame.editBox:SetFocus()
+            frame.editBox:HighlightText()
+        end)
+        
+        -- Clear button
+        local clearButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        clearButton:SetSize(100, 22)
+        clearButton:SetPoint("LEFT", selectButton, "RIGHT", 8, 0)
+        clearButton:SetText("Clear Log")
+        clearButton:SetScript("OnClick", function()
+            DamiaUIDebugLog = {}
+            ns.debugLog = {}
+            frame:Hide()
+            ns:Print("Debug log cleared")
+        end)
+        
+        -- Refresh button
+        local refreshButton = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+        refreshButton:SetSize(100, 22)
+        refreshButton:SetPoint("LEFT", clearButton, "RIGHT", 8, 0)
+        refreshButton:SetText("Refresh")
+        refreshButton:SetScript("OnClick", function()
+            ns:UpdateDebugLogDisplay()
+        end)
+    end
+    
+    -- Update and show
+    ns:UpdateDebugLogDisplay()
+    frame:Show()
+end
+
+-- Update debug log display
+function ns:UpdateDebugLogDisplay()
+    local frame = _G.DamiaUIDebugFrame
+    if not frame then return end
+    
+    -- Build log text
+    local logText = "DamiaUI Debug Log - " .. date("%Y-%m-%d %H:%M:%S") .. "\n"
+    logText = logText .. "==========================================\n\n"
+    
+    -- Use SavedVariables log if available, otherwise use in-memory log
+    local logSource = DamiaUIDebugLog or ns.debugLog
+    
+    for i, entry in ipairs(logSource) do
+        logText = logText .. entry .. "\n"
+    end
+    
+    -- Add module status at the end
+    logText = logText .. "\n========== Current Module Status ==========\n"
+    for name, module in pairs(ns.modules or {}) do
+        local status = string.format("%s: initialized=%s, enabled=%s",
+            name,
+            tostring(module.initialized),
+            tostring(module.enabled))
+        logText = logText .. status .. "\n"
+    end
+    
+    frame.editBox:SetText(logText)
+    frame.editBox:SetCursorPosition(0)
+end
+
+-- Export debug log
+function ns:ExportDebugLog()
+    ns:ShowDebugLog()
+    ns:Print("Debug log opened. You can copy the text to share for troubleshooting.")
 end
 
 -- Handle profile-specific commands
@@ -1306,13 +1639,8 @@ function ns:ReloadModules()
     end)
 end
 
--- Module registration function
-function ns:RegisterModule(name, module)
-    print("[DEBUG] Registering module: " .. name)
-    ns.modules[name] = module
-    -- Don't initialize here, wait for PLAYER_LOGIN
-    print("[DEBUG] Module " .. name .. " registered successfully")
-end
+-- Remove duplicate module registration - using ModuleSystem.lua instead
+-- Module registration is now handled in ModuleSystem.lua
 
 -- Show configuration GUI (stub for now)
 function ns:ShowConfigGUI()

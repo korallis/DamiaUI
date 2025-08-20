@@ -3,7 +3,7 @@
 ## Notes: Clean, minimalist UI replacement 
 ## Author: Damia
 ## Version: 11.2.0
-## SavedVariables: DamiaUIDB, DamiaUIProfileDB
+## SavedVariables: DamiaUIDB, DamiaUIProfileDB, DamiaUIDebugLog
 ## SavedVariablesPerCharacter: DamiaUICharDB
 ## IconTexture: Interface\Icons\INV_Misc_QuestionMark
 ## Category: DamiaUI
@@ -51,6 +51,7 @@ Core\API.lua
 Core\Config.lua
 Core\Profiles.lua
 Core\Library.lua
+Core\ModuleSystem.lua
 Core\DisableBlizzard.lua
 
 # Modules

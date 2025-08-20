@@ -806,7 +806,9 @@ end
 
 -- Error Capture System for DamiaUI
 ns.ErrorCapture = ns.ErrorCapture or {}
-print("[DEBUG] API.lua: ns.ErrorCapture initialized = " .. tostring(ns.ErrorCapture))
+if ns.LogDebug then
+    ns:LogDebug("API.lua: ns.ErrorCapture initialized = " .. tostring(ns.ErrorCapture))
+end
 local errorLogs = {}
 local maxErrors = 100 -- Limit stored errors to prevent memory issues
 
@@ -872,7 +874,9 @@ function ns.ErrorCapture.SafeCall(func, source, ...)
     
     return success, result
 end
-print("[DEBUG] API.lua: ns.ErrorCapture.SafeCall defined = " .. tostring(ns.ErrorCapture.SafeCall))
+if ns.LogDebug then
+    ns:LogDebug("API.lua: ns.ErrorCapture.SafeCall defined = " .. tostring(ns.ErrorCapture.SafeCall))
+end
 
 -- Get all captured errors
 function ns.ErrorCapture.GetErrors()

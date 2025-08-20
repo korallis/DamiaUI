@@ -61,7 +61,9 @@ function Chat:Initialize()
         -- Setup URL copy
         self:SetupURLCopy()
         
-        ns:Print("Chat module loaded")
+        if ns.LogDebug then
+            ns:LogDebug("Chat module loaded")
+        end
     end)
 end
 
@@ -79,8 +81,20 @@ function Chat:SetupChatFrames()
             -- Set frame properties
             frame:SetClampedToScreen(false)
             frame:SetClampRectInsets(0, 0, 0, 0)
-            frame:SetMaxResize(UIParent:GetWidth(), UIParent:GetHeight())
-            frame:SetMinResize(100, 50)
+            
+            -- Use SetResizeBounds for WoW 11.2 (SetMaxResize/SetMinResize deprecated)
+            if frame.SetResizeBounds then
+                -- New API in 11.2
+                frame:SetResizeBounds(100, 50, UIParent:GetWidth(), UIParent:GetHeight())
+            else
+                -- Fallback for older versions (shouldn't be needed in 11.2)
+                if frame.SetMaxResize then
+                    frame:SetMaxResize(UIParent:GetWidth(), UIParent:GetHeight())
+                end
+                if frame.SetMinResize then
+                    frame:SetMinResize(100, 50)
+                end
+            end
             
             -- Scale
             frame:SetScale(self.config.scale or 1)
