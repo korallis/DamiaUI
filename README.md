@@ -1,6 +1,6 @@
 # DamiaUI
 
-A minimalist, dark-themed UI addon for World of Warcraft, featuring the classic ColdUI aesthetic with modern functionality.
+A minimalist, dark-themed UI addon for World of Warcraft, featuring a clean aesthetic with modern functionality.
 
 ![WoW Version](https://img.shields.io/badge/WoW-11.2-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -8,11 +8,12 @@ A minimalist, dark-themed UI addon for World of Warcraft, featuring the classic 
 
 ## Features
 
-### 🎨 ColdUI Aesthetic
-- Dark, minimalist design throughout
-- Clean flat textures and borders
+### 🎨 Dark Minimalist Design
+- Clean, dark interface throughout
+- Flat textures and subtle borders
 - Consistent color scheme
 - Reduced visual clutter
+- Focus on functionality
 
 ### ⚔️ Action Bars
 - 5 main action bars + pet/stance bars
@@ -153,7 +154,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Credits
 
-- Original ColdUI design inspiration
 - oUF framework by Haste
 - LibActionButton by Nevcairiel
 - Community testers and contributors
