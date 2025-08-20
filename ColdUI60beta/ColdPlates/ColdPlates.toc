@@ -1,6 +1,0 @@
-## Interface: 60000
-## Author: Coldkil
-## Title: ColdPlates
-## Notes: ColdUI themed nameplates (based off rDiabloPlates2 by zork)
-
-core.lua

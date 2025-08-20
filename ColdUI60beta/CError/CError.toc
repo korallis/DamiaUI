@@ -1,7 +1,0 @@
-## Interface: 60000
-## Title: |cff0066ff C|rError
-## Author: Castle
-## X-eMail: castle@saintly.com
-## Notes: Blocks ALL red errors from the middle of your screen such as 'Not enough Energy'.
-
-CError.lua
