@@ -70,19 +70,27 @@ DamiaUIFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 -- Event handler
 DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
+    print("[DEBUG] Event received: " .. event)
     if event == "ADDON_LOADED" then
         local addon = ...
+        print("[DEBUG] ADDON_LOADED for: " .. tostring(addon))
         if addon == addonName then
+            print("[DEBUG] DamiaUI ADDON_LOADED event processing...")
             -- Initialize saved variables
             DamiaUIDB = DamiaUIDB or {}
             DamiaUICharDB = DamiaUICharDB or {}
             DamiaUIProfileDB = DamiaUIProfileDB or {}
+            print("[DEBUG] Saved variables initialized")
             
             -- Apply defaults first
+            print("[DEBUG] Calling InitializeDefaults()")
             ns:InitializeDefaults()
+            print("[DEBUG] InitializeDefaults() completed")
             
             -- Initialize profile system after defaults are available
+            print("[DEBUG] Calling InitializeProfiles()")
             ns:InitializeProfiles()
+            print("[DEBUG] InitializeProfiles() completed")
             
             -- Update profile defaults now that configDefaults is available
             if ns.Profiles and ns.Profiles.initialized then
@@ -90,19 +98,27 @@ DamiaUIFrame:SetScript("OnEvent", function(self, event, ...)
             end
             
             -- Load configuration AFTER defaults are set and profiles initialized
+            print("[DEBUG] Calling LoadConfig()")
             ns:LoadConfig()
+            print("[DEBUG] LoadConfig() completed")
             
             -- Apply configuration to ensure ns.config is populated
+            print("[DEBUG] Calling ApplyConfig()")
             ns:ApplyConfig()
+            print("[DEBUG] ApplyConfig() completed")
             
             self:UnregisterEvent("ADDON_LOADED")
         end
     elseif event == "PLAYER_LOGIN" then
+        print("[DEBUG] PLAYER_LOGIN event - starting module initialization")
         -- Initialize modules AFTER config is loaded
         ns:InitializeModules()
+        print("[DEBUG] Module initialization completed")
         
         -- Setup slash commands
+        print("[DEBUG] Setting up slash commands")
         ns:SetupSlashCommands()
+        print("[DEBUG] Slash commands setup completed")
         
         print("|cff00FF7FDamiaUI|r v" .. ns.version .. " loaded successfully!")
     elseif event == "PLAYER_ENTERING_WORLD" then
@@ -299,9 +315,20 @@ end
 
 -- Initialize modules with comprehensive error recovery
 function ns:InitializeModules()
+    print("[DEBUG] InitializeModules called")
+    
     -- Ensure config is loaded
     if not ns.config then
+        print("[DEBUG] Config not found, applying config")
         ns:ApplyConfig()
+    else
+        print("[DEBUG] Config is available")
+    end
+    
+    -- Debug: Show registered modules
+    print("[DEBUG] Registered modules:")
+    for name in pairs(ns.modules) do
+        print("[DEBUG]   - " .. name)
     end
     
     local initOrder = {"ActionBars", "UnitFrames", "Minimap"} -- Priority order
@@ -310,21 +337,32 @@ function ns:InitializeModules()
     
     -- Initialize priority modules first
     for _, moduleName in ipairs(initOrder) do
+        print("[DEBUG] Trying to initialize priority module: " .. moduleName)
         local module = ns.modules[moduleName]
         if module then
+            print("[DEBUG] Module " .. moduleName .. " found, initializing...")
             initializedModules[moduleName] = ns:InitializeSingleModule(moduleName, module)
             if not initializedModules[moduleName] then
                 failedModules[#failedModules + 1] = moduleName
+                print("[DEBUG] Module " .. moduleName .. " FAILED to initialize")
+            else
+                print("[DEBUG] Module " .. moduleName .. " initialized successfully")
             end
+        else
+            print("[DEBUG] Priority module " .. moduleName .. " NOT FOUND in registered modules")
         end
     end
     
     -- Initialize remaining modules
     for name, module in pairs(ns.modules) do
         if not initializedModules[name] then
+            print("[DEBUG] Trying to initialize remaining module: " .. name)
             initializedModules[name] = ns:InitializeSingleModule(name, module)
             if not initializedModules[name] then
                 failedModules[#failedModules + 1] = name
+                print("[DEBUG] Module " .. name .. " FAILED to initialize")
+            else
+                print("[DEBUG] Module " .. name .. " initialized successfully")
             end
         end
     end
@@ -349,17 +387,20 @@ end
 
 -- Initialize a single module with detailed error handling
 function ns:InitializeSingleModule(name, module)
+    print("[DEBUG] InitializeSingleModule called for: " .. name)
     if not module then
-        ns:Debug("Module", name, "is nil")
+        print("[DEBUG] ERROR: Module " .. name .. " is nil")
         return false
     end
     
     -- Check if module is disabled in config
     if ns.config.modules and ns.config.modules[name] == false then
-        ns:Debug("Module", name, "is disabled in config")
+        print("[DEBUG] Module " .. name .. " is disabled in config")
         module.initialized = false
         module.enabled = false
         return true -- Not an error, just disabled
+    else
+        print("[DEBUG] Module " .. name .. " is enabled (or not explicitly disabled)")
     end
     
     -- Validate module structure
@@ -383,12 +424,14 @@ function ns:InitializeSingleModule(name, module)
     
     local function initFunction()
         if module.Initialize then
+            print("[DEBUG] Calling Initialize() for module: " .. name)
             module:Initialize()
             module.initialized = true
             module.enabled = true
             initSuccess = true
+            print("[DEBUG] Initialize() completed for module: " .. name)
         else
-            ns:Debug("Module", name, "has no Initialize function")
+            print("[DEBUG] Module " .. name .. " has no Initialize function")
             module.initialized = true
             module.enabled = true
             initSuccess = true
@@ -398,8 +441,13 @@ function ns:InitializeSingleModule(name, module)
     -- Protected call with error capture
     local success, err = pcall(initFunction)
     
+    print("[DEBUG] pcall result for " .. name .. ": success=" .. tostring(success) .. ", initSuccess=" .. tostring(initSuccess))
+    if err then
+        print("[DEBUG] pcall error for " .. name .. ": " .. tostring(err))
+    end
+    
     if success and initSuccess then
-        ns:Debug("Module", name, "initialized successfully")
+        print("[DEBUG] Module " .. name .. " initialized successfully")
         
         -- Post-initialization validation
         if module.PostInitialize then
@@ -413,6 +461,7 @@ function ns:InitializeSingleModule(name, module)
         return true
     else
         initError = err or "Unknown initialization error"
+        print("[DEBUG] INITIALIZATION FAILED for " .. name .. ": " .. initError)
         ns:Print("|cffFF0000Error initializing " .. name .. ":|r " .. initError)
         
         -- Attempt graceful degradation
@@ -1062,8 +1111,10 @@ end
 
 -- Module registration function
 function ns:RegisterModule(name, module)
+    print("[DEBUG] Registering module: " .. name)
     ns.modules[name] = module
     -- Don't initialize here, wait for PLAYER_LOGIN
+    print("[DEBUG] Module " .. name .. " registered successfully")
 end
 
 -- Utility functions

@@ -11,29 +11,51 @@ ActionBars.buttons = {}
 
 -- Initialize module
 function ActionBars:Initialize()
+    print("[DEBUG] ActionBars:Initialize() called")
+    
     -- Get config
     self.config = ns.config.actionbar
+    print("[DEBUG] ActionBars config retrieved: " .. tostring(self.config ~= nil))
     
-    if not self.config or not self.config.enabled then
+    if not self.config then
+        print("[DEBUG] ActionBars: No config found, returning")
         return
     end
     
+    if not self.config.enabled then
+        print("[DEBUG] ActionBars: Module disabled in config, returning")
+        return
+    end
+    
+    print("[DEBUG] ActionBars: Config enabled, proceeding with initialization")
+    
     -- Create bars
+    print("[DEBUG] ActionBars: Creating main bar...")
     self:CreateMainBar()
+    print("[DEBUG] ActionBars: Creating bar2...")
     self:CreateBar2()
+    print("[DEBUG] ActionBars: Creating bar3...")
     self:CreateBar3()
+    print("[DEBUG] ActionBars: Creating bar4...")
     self:CreateBar4()
+    print("[DEBUG] ActionBars: Creating bar5...")
     self:CreateBar5()
+    print("[DEBUG] ActionBars: Creating pet bar...")
     self:CreatePetBar()
+    print("[DEBUG] ActionBars: Creating stance bar...")
     self:CreateStanceBar()
+    print("[DEBUG] ActionBars: Creating extra bar...")
     self:CreateExtraBar()
     
     -- Setup paging
+    print("[DEBUG] ActionBars: Setting up paging...")
     self:SetupPaging()
     
     -- Register events
+    print("[DEBUG] ActionBars: Registering events...")
     self:RegisterEvents()
     
+    print("[DEBUG] ActionBars: Initialization completed successfully")
     ns:Print("Action Bars module loaded")
 end
 
@@ -298,5 +320,40 @@ function ActionBars:HideGrid()
     end
 end
 
+-- Stub functions for missing methods (to prevent errors)
+function ActionBars:CreateBar2()
+    print("[DEBUG] ActionBars:CreateBar2() stub - method not implemented yet")
+end
+
+function ActionBars:CreateBar3()
+    print("[DEBUG] ActionBars:CreateBar3() stub - method not implemented yet")
+end
+
+function ActionBars:CreateBar4()
+    print("[DEBUG] ActionBars:CreateBar4() stub - method not implemented yet")
+end
+
+function ActionBars:CreateBar5()
+    print("[DEBUG] ActionBars:CreateBar5() stub - method not implemented yet")
+end
+
+function ActionBars:CreatePetBar()
+    print("[DEBUG] ActionBars:CreatePetBar() stub - method not implemented yet")
+end
+
+function ActionBars:CreateStanceBar()
+    print("[DEBUG] ActionBars:CreateStanceBar() stub - method not implemented yet")
+end
+
+function ActionBars:CreateExtraBar()
+    print("[DEBUG] ActionBars:CreateExtraBar() stub - method not implemented yet")
+end
+
+function ActionBars:SetupPaging()
+    print("[DEBUG] ActionBars:SetupPaging() stub - method not implemented yet")
+end
+
 -- Register with main addon
+print("[DEBUG] ActionBars module about to register...")
 ns:RegisterModule("ActionBars", ActionBars)
+print("[DEBUG] ActionBars module registration completed")
